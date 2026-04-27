@@ -155,6 +155,19 @@ SENSORS: tuple[WavinCalefaSensorDescription, ...] = (
         suggested_display_precision=1,
     ),
     WavinCalefaSensorDescription(
+        key="source_power",
+        source_key="source_power",
+        name="Fjernvarme effekt",
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=UnitOfPower.KILO_WATT,
+        suggested_display_precision=3,
+        description_text=(
+            "Beregnet fjernvarmeeffekt baseret på fjernvarmeflow og afkøling: "
+            "L/h × °C × 1,163 / 1000. Ikke officiel afregningsmåler."
+        ),
+    ),
+    WavinCalefaSensorDescription(
         key="cvv_supply_temperature",
         source_key="cvv_supply_temperature",
         name="CVV fremløb temperatur",
