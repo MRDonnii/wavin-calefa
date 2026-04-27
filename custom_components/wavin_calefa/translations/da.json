@@ -1,0 +1,39 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Wavin Calefa",
+        "description": "Opret forbindelse til en Wavin Calefa/Sentio unit via lokal Modbus TCP.",
+        "data": {
+          "name": "Navn",
+          "host": "IP-adresse",
+          "port": "Port",
+          "unit_id": "Modbus unit ID",
+          "scan_interval": "Opdateringsinterval"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Der kunne ikke oprettes forbindelse til enheden.",
+      "unexpected_device": "Enheden svarede, men lignede ikke en Calefa/Sentio enhed."
+    },
+    "abort": {
+      "already_configured": "Denne enhed er allerede konfigureret."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Wavin Calefa indstillinger",
+        "data": {
+          "name": "Navn",
+          "host": "IP-adresse",
+          "port": "Port",
+          "unit_id": "Modbus unit ID",
+          "scan_interval": "Opdateringsinterval"
+        }
+      }
+    }
+  }
+}
+
