@@ -44,6 +44,8 @@ INPUT_REGISTERS: dict[str, tuple[int, str]] = {
     "valve_position": (6511, "percent100"),
     "boost_pump_state": (6512, "uint16"),
     "cvv_valve_position": (7304, "percent100"),
+    "cvv_flow": (7306, "int16"),
+    "source_flow": (7307, "int16"),
     "system_pressure": (7310, "pressure100"),
 }
 

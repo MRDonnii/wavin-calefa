@@ -91,11 +91,41 @@ SENSORS: tuple[WavinCalefaSensorDescription, ...] = (
     WavinCalefaSensorDescription(
         key="domestic_cold_water_flow",
         source_key="domestic_cold_water_flow",
-        name="Brugsvandsflow",
+        name="BVV flow",
         icon="mdi:waves-arrow-right",
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement="L/h",
         suggested_display_precision=0,
+        description_text=(
+            "BVV er brugsvandskredsen til varmt brugsvand. Dette er flowet "
+            "gennem varmtvandsdelen."
+        ),
+    ),
+    WavinCalefaSensorDescription(
+        key="cvv_flow",
+        source_key="cvv_flow",
+        name="CVV flow",
+        icon="mdi:waves-arrow-right",
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement="L/h",
+        suggested_display_precision=0,
+        description_text=(
+            "CVV er centralvarmekredsen til radiator-/varmekredsen. Dette er "
+            "flowet på varmesiden."
+        ),
+    ),
+    WavinCalefaSensorDescription(
+        key="source_flow",
+        source_key="source_flow",
+        name="Fjernvarme flow",
+        icon="mdi:waves-arrow-right",
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement="L/h",
+        suggested_display_precision=0,
+        description_text=(
+            "Fjernvarmeflowet er flowet på primærsiden fra fjernvarmenettet "
+            "gennem unitten."
+        ),
     ),
     WavinCalefaSensorDescription(
         key="source_inlet_temperature",
