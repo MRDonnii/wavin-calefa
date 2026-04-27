@@ -58,6 +58,7 @@ class WavinCalefaSensorDescription(SensorEntityDescription):
     source_key: str
     enum_map: dict[int, str] | None = None
     raw_attribute: bool = False
+    description_text: str | None = None
 
 
 SENSORS: tuple[WavinCalefaSensorDescription, ...] = (
@@ -124,6 +125,32 @@ SENSORS: tuple[WavinCalefaSensorDescription, ...] = (
         suggested_display_precision=1,
     ),
     WavinCalefaSensorDescription(
+        key="cvv_supply_temperature",
+        source_key="cvv_supply_temperature",
+        name="CVV fremløb temperatur",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        suggested_display_precision=1,
+        description_text=(
+            "CVV er centralvarmekredsen. Dette er fremløbstemperaturen ud "
+            "mod radiator-/varmekredsen."
+        ),
+    ),
+    WavinCalefaSensorDescription(
+        key="cvv_return_temperature",
+        source_key="cvv_return_temperature",
+        name="CVV retur temperatur",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        suggested_display_precision=1,
+        description_text=(
+            "CVV er centralvarmekredsen. Dette er returtemperaturen tilbage "
+            "fra radiator-/varmekredsen."
+        ),
+    ),
+    WavinCalefaSensorDescription(
         key="system_pressure",
         source_key="system_pressure",
         name="Anlægstryk",
@@ -146,11 +173,28 @@ SENSORS: tuple[WavinCalefaSensorDescription, ...] = (
     WavinCalefaSensorDescription(
         key="valve_position",
         source_key="valve_position",
-        name="Ventilposition",
+        name="BVV ventilposition",
         icon="mdi:valve",
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=PERCENTAGE,
         suggested_display_precision=0,
+        description_text=(
+            "BVV er brugsvandsventilen til varmt brugsvand. Den viser hvor "
+            "meget ventilen mod varmtvandsveksleren er åben."
+        ),
+    ),
+    WavinCalefaSensorDescription(
+        key="cvv_valve_position",
+        source_key="cvv_valve_position",
+        name="CVV ventilposition",
+        icon="mdi:valve",
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=PERCENTAGE,
+        suggested_display_precision=0,
+        description_text=(
+            "CVV er centralvarmeventilen til varmekredsen/radiatorvarmen. "
+            "Den viser hvor meget varmeventilen er åben."
+        ),
     ),
     WavinCalefaSensorDescription(
         key="dhw_power_estimate",
@@ -352,6 +396,8 @@ class WavinCalefaSensor(
         attrs: dict[str, Any] = {}
         description = self.entity_description
         raw_key = f"{description.source_key}_raw"
+        if description.description_text:
+            attrs["description"] = description.description_text
         if description.raw_attribute and raw_key in self.coordinator.data:
             attrs["raw_value"] = self.coordinator.data[raw_key]
         if description.key == "dhw_power_estimate":

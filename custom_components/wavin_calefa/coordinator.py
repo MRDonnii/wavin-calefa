@@ -43,10 +43,13 @@ INPUT_REGISTERS: dict[str, tuple[int, str]] = {
     "domestic_cold_water_flow": (6510, "int16"),
     "valve_position": (6511, "percent100"),
     "boost_pump_state": (6512, "uint16"),
+    "cvv_valve_position": (7304, "percent100"),
     "system_pressure": (7310, "pressure100"),
 }
 
 HOLDING_REGISTERS: dict[str, tuple[int, str]] = {
+    "cvv_supply_temperature": (32, "temp100"),
+    "cvv_return_temperature": (43, "temp1"),
     "dhw_mode": (6517, "uint16"),
     "dhw_block_request": (6519, "uint16"),
     "dhw_temperature_setpoint": (6521, "temp100"),
@@ -80,6 +83,8 @@ def _convert(raw: int, kind: str) -> int | float:
     value = signed16(raw)
     if kind in {"temp100", "pressure100", "percent100"}:
         return round(value * 0.01, 2)
+    if kind == "temp1":
+        return value
     if kind == "int16":
         return value
     return raw
@@ -158,4 +163,3 @@ class WavinCalefaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             data["unavailable"] = unavailable
 
         return data
-
