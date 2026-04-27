@@ -7,8 +7,9 @@ Modbus TCP.
 
 - Config flow with IP address, port, unit ID and unit name.
 - Local polling, no cloud dependency.
-- Sensors for domestic hot water, district heating temperatures, valve
-  position, calculated cooling, system pressure and diagnostics.
+- Sensors for domestic hot water, estimated hot-water power and energy,
+  district heating temperatures, valve position, calculated cooling, system
+  pressure and diagnostics.
 - Binary sensors for Calefa warnings and errors.
 - Local icon/logo assets for Home Assistant and HACS.
 
@@ -23,6 +24,10 @@ The cold-water temperature sensor can be warmed by the heat exchanger when no
 water is flowing. The `Varmtvand effekt estimat` sensor therefore only uses it
 as a calculation input when there is flow and the value looks like a realistic
 cold-water temperature; otherwise it falls back to 10 °C.
+
+`Varmtvand energi estimat` integrates the hot-water power estimate over time and
+restores its previous value after Home Assistant restarts. It is an operational
+estimate, not an official billing meter.
 
 ## HACS
 
