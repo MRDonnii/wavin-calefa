@@ -10,6 +10,7 @@ Modbus TCP.
 - Sensors for domestic hot water, district heating temperatures, valve
   position, calculated cooling, system pressure and diagnostics.
 - Binary sensors for Calefa warnings and errors.
+- Local icon/logo assets for Home Assistant and HACS.
 
 ## Notes
 
@@ -33,4 +34,3 @@ For HACS, the repository should contain:
 
 This working copy currently contains the integration under
 `custom_components/wavin_calefa/`.
-
