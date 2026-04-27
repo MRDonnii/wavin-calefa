@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Wavin Calefa">
+  <defs>
+    <linearGradient id="bg" x1="34" y1="22" x2="220" y2="232" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0f766e"/>
+      <stop offset="0.52" stop-color="#0ea5a4"/>
+      <stop offset="1" stop-color="#f97316"/>
+    </linearGradient>
+    <linearGradient id="pipe" x1="54" y1="88" x2="210" y2="170" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#d8f3f0"/>
+      <stop offset="1" stop-color="#ffffff"/>
+    </linearGradient>
+  </defs>
+  <rect x="18" y="18" width="220" height="220" rx="56" fill="url(#bg)"/>
+  <path d="M64 154c28 0 30-52 64-52s36 52 64 52" fill="none" stroke="url(#pipe)" stroke-width="22" stroke-linecap="round"/>
+  <path d="M82 174h92" stroke="#ffffff" stroke-width="18" stroke-linecap="round" opacity="0.95"/>
+  <circle cx="128" cy="128" r="23" fill="#073b3a" opacity="0.85"/>
+  <path d="M128 108v40M108 128h40" stroke="#ffffff" stroke-width="11" stroke-linecap="round"/>
+  <path d="M191 78c0 20-15 33-31 33s-31-13-31-33c0-22 31-56 31-56s31 34 31 56z" fill="#bae6fd" opacity="0.95"/>
+  <path d="M173 80c0 8-6 14-13 14" fill="none" stroke="#0f766e" stroke-width="8" stroke-linecap="round" opacity="0.75"/>
+</svg>
