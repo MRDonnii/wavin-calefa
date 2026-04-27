@@ -9,8 +9,8 @@ Modbus TCP.
 - Local polling, no cloud dependency.
 - Sensors for domestic hot water, estimated hot-water power and energy,
   district heating temperatures, BVV valve position, CVV valve position,
-  CVV flow/return temperatures, calculated cooling, system pressure and
-  diagnostics.
+  BVV/CVV/district-heating flow, CVV flow/return temperatures, calculated
+  cooling, system pressure and diagnostics.
 - Binary sensors for Calefa warnings and errors.
 - Local icon/logo assets for Home Assistant and HACS.
 
@@ -23,6 +23,9 @@ sensor for comparison.
 
 `BVV ventilposition` uses input register `6511` with scale `0.01`. BVV is the
 domestic hot-water valve for the hot-water heat exchanger.
+
+`BVV flow` uses input register `6510` in L/h. `CVV flow` uses input register
+`7306` in L/h. `Fjernvarme flow` uses input register `7307` in L/h.
 
 `CVV ventilposition` uses input register `7304` with scale `0.01`. CVV is the
 central-heating valve for the heating/radiator circuit. This has been observed
