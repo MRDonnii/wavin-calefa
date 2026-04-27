@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any
 
 from homeassistant.components.sensor import (
@@ -14,6 +15,7 @@ from homeassistant.components.sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     EntityCategory,
+    UnitOfEnergy,
     UnitOfPressure,
     UnitOfTemperature,
 )
@@ -21,6 +23,7 @@ from homeassistant.const import PERCENTAGE, UnitOfPower
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
@@ -159,6 +162,15 @@ SENSORS: tuple[WavinCalefaSensorDescription, ...] = (
         suggested_display_precision=3,
     ),
     WavinCalefaSensorDescription(
+        key="dhw_energy_estimate",
+        source_key="dhw_energy_estimate",
+        name="Varmtvand energi estimat",
+        device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        suggested_display_precision=3,
+    ),
+    WavinCalefaSensorDescription(
         key="dhw_temperature_setpoint",
         source_key="dhw_temperature_setpoint",
         name="Brugsvand setpunkt",
@@ -253,11 +265,15 @@ async def async_setup_entry(
     )
 
 
-class WavinCalefaSensor(CoordinatorEntity[WavinCalefaCoordinator], SensorEntity):
+class WavinCalefaSensor(
+    CoordinatorEntity[WavinCalefaCoordinator], SensorEntity, RestoreEntity
+):
     """Wavin Calefa sensor."""
 
     entity_description: WavinCalefaSensorDescription
     _attr_has_entity_name = True
+    _energy_kwh: float | None = None
+    _last_energy_update: datetime | None = None
 
     def __init__(
         self,
@@ -276,9 +292,55 @@ class WavinCalefaSensor(CoordinatorEntity[WavinCalefaCoordinator], SensorEntity)
             model="Calefa 2",
         )
 
+    async def async_added_to_hass(self) -> None:
+        """Restore state for cumulative estimate sensors."""
+        await super().async_added_to_hass()
+        if self.entity_description.key != "dhw_energy_estimate":
+            return
+
+        last_state = await self.async_get_last_state()
+        if last_state is not None:
+            try:
+                self._energy_kwh = max(0.0, float(last_state.state))
+            except (TypeError, ValueError):
+                self._energy_kwh = 0.0
+        else:
+            self._energy_kwh = 0.0
+        self._last_energy_update = datetime.now(timezone.utc)
+        self._integrate_energy_estimate()
+
+    def _handle_coordinator_update(self) -> None:
+        """Update cumulative values before Home Assistant writes state."""
+        if self.entity_description.key == "dhw_energy_estimate":
+            self._integrate_energy_estimate()
+        super()._handle_coordinator_update()
+
+    def _integrate_energy_estimate(self) -> None:
+        """Integrate current DHW power estimate into kWh."""
+        now = datetime.now(timezone.utc)
+        if self._energy_kwh is None:
+            self._energy_kwh = 0.0
+
+        power = self.coordinator.data.get("dhw_power_estimate")
+        if (
+            self._last_energy_update is not None
+            and isinstance(power, (int, float))
+            and power >= 0
+        ):
+            hours = (now - self._last_energy_update).total_seconds() / 3600
+            if 0 <= hours <= 1:
+                self._energy_kwh += power * hours
+
+        self._last_energy_update = now
+
     @property
     def native_value(self) -> Any:
         """Return the sensor value."""
+        if self.entity_description.key == "dhw_energy_estimate":
+            if self._energy_kwh is None:
+                return None
+            return round(self._energy_kwh, 3)
+
         value = self.coordinator.data.get(self.entity_description.source_key)
         if self.entity_description.enum_map is not None:
             return self.entity_description.enum_map.get(value, str(value))
@@ -299,5 +361,9 @@ class WavinCalefaSensor(CoordinatorEntity[WavinCalefaCoordinator], SensorEntity)
             attrs["note"] = (
                 "Estimat for varmt brugsvand. Ikke officiel fjernvarmeafregning."
             )
+        if description.key == "dhw_energy_estimate":
+            attrs["note"] = (
+                "Akkumuleret estimat fra Varmtvand effekt estimat. "
+                "Ikke officiel fjernvarmeafregning."
+            )
         return attrs or None
-
