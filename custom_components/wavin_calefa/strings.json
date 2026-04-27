@@ -1,0 +1,39 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Wavin Calefa",
+        "description": "Connect to a Wavin Calefa/Sentio unit over local Modbus TCP.",
+        "data": {
+          "name": "Name",
+          "host": "IP address",
+          "port": "Port",
+          "unit_id": "Modbus unit ID",
+          "scan_interval": "Scan interval"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not connect to the unit.",
+      "unexpected_device": "The unit answered, but it did not look like a Calefa/Sentio device."
+    },
+    "abort": {
+      "already_configured": "This unit is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Wavin Calefa options",
+        "data": {
+          "name": "Name",
+          "host": "IP address",
+          "port": "Port",
+          "unit_id": "Modbus unit ID",
+          "scan_interval": "Scan interval"
+        }
+      }
+    }
+  }
+}
+
