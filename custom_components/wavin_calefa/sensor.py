@@ -153,27 +153,33 @@ SENSORS: tuple[WavinCalefaSensorDescription, ...] = (
     WavinCalefaSensorDescription(
         key="cvv_flow",
         source_key="cvv_flow",
-        name="Radiator flow (CVV)",
+        name="Radiator flow (CVV, uverificeret)",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
         icon="mdi:waves-arrow-right",
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement="L/h",
         suggested_display_precision=0,
         description_text=(
-            "CVV er centralvarmekredsen til radiator-/varmekredsen. Dette er "
-            "flowet på varmesiden."
+            "Uverificeret kandidatværdi for flow på radiator-/CVV-kredsen. "
+            "Den er ikke matchet mod en flowværdi i Calefa-displayet og kan "
+            "på nogle units være en intern reguleringsværdi."
         ),
     ),
     WavinCalefaSensorDescription(
         key="source_flow",
         source_key="source_flow",
-        name="Fjernvarme flow",
+        name="Fjernvarme flow (uverificeret)",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
         icon="mdi:waves-arrow-right",
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement="L/h",
         suggested_display_precision=0,
         description_text=(
-            "Fjernvarmeflowet er flowet på primærsiden fra fjernvarmenettet "
-            "gennem unitten."
+            "Uverificeret kandidatværdi for flow på primærsiden. Den er ikke "
+            "matchet mod en flowværdi i Calefa-displayet og bør ikke bruges "
+            "som afregnings- eller forbrugsmåler."
         ),
     ),
     WavinCalefaSensorDescription(
@@ -225,14 +231,16 @@ SENSORS: tuple[WavinCalefaSensorDescription, ...] = (
     WavinCalefaSensorDescription(
         key="source_power",
         source_key="source_power",
-        name="Fjernvarme effekt",
+        name="Fjernvarme effekt (uverificeret)",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfPower.KILO_WATT,
         suggested_display_precision=3,
         description_text=(
-            "Beregnet fjernvarmeeffekt baseret på fjernvarmeflow og afkøling: "
-            "L/h × °C × 1,163 / 1000. Ikke officiel afregningsmåler."
+            "Eksperimentelt estimat baseret på den uverificerede fjernvarmeflow-kandidat "
+            "og afkøling: L/h × °C × 1,163 / 1000. Ikke officiel afregningsmåler."
         ),
     ),
     WavinCalefaSensorDescription(

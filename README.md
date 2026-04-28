@@ -37,13 +37,17 @@ The hot-water display page has been matched as:
 the bypass status is `Til`. `BVV blokeret af` uses input register `6503`; value
 `0` means `Ingen`.
 
-`Varmtvandsflow (BVV)` uses input register `6510` in L/h. `Radiator flow (CVV)`
-uses input register `7306` in L/h. `Fjernvarme flow` uses input register `7307`
-in L/h.
+`Varmtvandsflow (BVV)` uses input register `6510` in L/h and is matched against
+the `FLOW` value on the hot-water display page.
 
-`Fjernvarme effekt` is calculated from `Fjernvarme flow` and `Fjernvarme
-afkøling` as L/h × °C × 1.163 / 1000. It is an operational estimate, not an
-official billing meter.
+`Radiator flow (CVV, uverificeret)` and `Fjernvarme flow (uverificeret)` are
+kept as disabled diagnostic candidate sensors. They have not been matched
+against a confirmed flow value on the Calefa display and may be internal
+regulation values on some units.
+
+`Fjernvarme effekt (uverificeret)` is calculated from the unverified
+`Fjernvarme flow (uverificeret)` candidate and `Fjernvarme afkøling` as
+L/h × °C × 1.163 / 1000. It is experimental and not an official billing meter.
 
 `Radiatorventil (CVV)` uses input register `7304` with scale `0.01`. CVV is the
 central-heating valve for the heating/radiator circuit. This has been observed
