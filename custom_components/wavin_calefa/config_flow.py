@@ -59,7 +59,9 @@ class WavinCalefaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             host = user_input[CONF_HOST].strip()
             user_input[CONF_HOST] = host
-            await self.async_set_unique_id(f"{host}:{user_input[CONF_PORT]}")
+            await self.async_set_unique_id(
+                f"{host}:{user_input[CONF_PORT]}:{user_input[CONF_UNIT_ID]}"
+            )
             self._abort_if_unique_id_configured()
 
             client = WavinCalefaClient(
@@ -123,4 +125,3 @@ class WavinCalefaOptionsFlow(config_entries.OptionsFlow):
             step_id="init",
             data_schema=_schema(self._config_entry.data),
         )
-
