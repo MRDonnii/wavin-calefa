@@ -8,8 +8,8 @@ Modbus TCP.
 - Config flow with IP address, port, unit ID and unit name.
 - Local polling, no cloud dependency.
 - Sensors for domestic hot water (BVV), radiator heat (CVV), district heating
-  (FJF/FJR), valve positions, flows, calculated cooling, calculated power,
-  system pressure and diagnostics.
+  (FJF/FJR), outdoor temperature (UT), valve positions, flows, calculated
+  cooling, calculated power, system pressure (PRE) and diagnostics.
 - Binary sensors for Calefa warnings and errors.
 - Local icon/logo assets for Home Assistant and HACS.
 
@@ -47,10 +47,15 @@ to match the heating valve opening shown on the local Calefa display.
 
 The radiator display page has been matched as:
 
-- `RT:` -> `Radiator retur (CVV)`, input register `7702`, scale `0.01`.
-- `VF:` -> `Radiator fremløb (CVV)`, input register `7703`, scale `0.01`.
+- `UT:` -> `Udetemperatur (UT)`, input register `20`, scale `0.01`.
+- `ØVF:` -> `Radiator ønsket fremløb (ØVF)`, input register `7703`, scale `0.01`.
+- `VF:` -> `Radiator fremløb (CVV)`, input register `7701`, scale `0.01`.
+- `VR:` -> `Radiator retur (CVV)`, input register `7702`, scale `0.01`.
 - `PUM:` -> `Radiatorpumpe status (CVV)`, input register `7704`.
 - Radiator heat request -> `Radiator varmekald (CVV)`, input register `7705`.
+- `CVV:` -> `Radiatorventil (CVV)`, input register `7304`, scale `0.01`.
+- `SÆT:` -> `Radiator setpunkt (SÆT)`, holding register `38`, scale `0.01`.
+- `PRE:` -> `Anlægstryk`, input register `7310`, scale `0.01`.
 
 The cold-water temperature sensor can be warmed by the heat exchanger when no
 water is flowing. The `Varmtvand effekt estimat` sensor therefore only uses it
