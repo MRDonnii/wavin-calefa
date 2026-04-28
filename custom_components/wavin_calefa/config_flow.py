@@ -21,7 +21,11 @@ from .const import (
     DOMAIN,
     MIN_SCAN_INTERVAL,
 )
-from .modbus import WavinCalefaClient, WavinCalefaError
+from .modbus import (
+    WavinCalefaClient,
+    WavinCalefaConnectionError,
+    WavinCalefaModbusError,
+)
 
 
 def _schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
@@ -70,14 +74,13 @@ class WavinCalefaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 unit_id=user_input[CONF_UNIT_ID],
             )
             try:
-                device_type = await self.hass.async_add_executor_job(
+                await self.hass.async_add_executor_job(
                     client.read_register, 10
                 )
-            except WavinCalefaError:
+            except WavinCalefaConnectionError:
                 errors["base"] = "cannot_connect"
-            else:
-                if device_type not in (2, 3):
-                    errors["base"] = "unexpected_device"
+            except WavinCalefaModbusError:
+                pass
 
             if not errors:
                 return self.async_create_entry(
