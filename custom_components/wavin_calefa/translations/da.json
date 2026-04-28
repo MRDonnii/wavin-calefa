@@ -14,8 +14,7 @@
       }
     },
     "error": {
-      "cannot_connect": "Der kunne ikke oprettes forbindelse til enheden.",
-      "unexpected_device": "Enheden svarede, men lignede ikke en Calefa/Sentio enhed."
+      "cannot_connect": "Der kunne ikke oprettes forbindelse til enheden."
     },
     "abort": {
       "already_configured": "Denne enhed er allerede konfigureret."
@@ -36,4 +35,3 @@
     }
   }
 }
-
