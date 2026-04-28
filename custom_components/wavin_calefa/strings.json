@@ -14,8 +14,7 @@
       }
     },
     "error": {
-      "cannot_connect": "Could not connect to the unit.",
-      "unexpected_device": "The unit answered, but it did not look like a Calefa/Sentio device."
+      "cannot_connect": "Could not connect to the unit."
     },
     "abort": {
       "already_configured": "This unit is already configured."
@@ -36,4 +35,3 @@
     }
   }
 }
-

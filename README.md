@@ -9,6 +9,8 @@ Modbus TCP.
 - Local polling, no cloud dependency.
 - No installation-specific IP addresses, entity IDs or dashboard references are
   shipped in the integration.
+- Setup only blocks on a real TCP/Modbus connection failure. Units with a
+  different firmware response on the probe register can still be added.
 - Sensors for domestic hot water (BVV), radiator heat (CVV), district heating
   (FJF/FJR), outdoor temperature (UT), valve positions, flows, calculated
   cooling, calculated power, system pressure (PRE) and diagnostics.
