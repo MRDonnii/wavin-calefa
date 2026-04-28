@@ -30,15 +30,15 @@ The hot-water display page has been matched as:
 - `KV` -> `Koldt vand ind (KV)`, input register `6509`, scale `0.01`.
 - `FJF` -> `Fjernvarme fremløb (FJF)`, input register `6506`, scale `0.01`.
 - `FJR` -> `Fjernvarme retur (FJR)`, input register `6507`, scale `0.01`.
-- `FLOW` -> `Varmtvandsflow (BVV)`, input register `6510`, L/h.
+- `FLW` -> `Varmtvandsflow (FLW)`, input register `6510`, L/h.
 - `BVV` -> `Varmtvandsventil (BVV)`, input register `6511`, scale `0.01`.
 
 `BVV bypass status` is derived from `BVV status`: when the status is `Bypass`,
 the bypass status is `Til`. `BVV blokeret af` uses input register `6503`; value
 `0` means `Ingen`.
 
-`Varmtvandsflow (BVV)` uses input register `6510` in L/h and is matched against
-the `FLOW` value on the hot-water display page.
+`Varmtvandsflow (FLW)` uses input register `6510` in L/h and is matched against
+the `FLW` value on the hot-water display page.
 
 `Radiator flow (CVV, uverificeret)` and `Fjernvarme flow (uverificeret)` are
 kept as disabled diagnostic candidate sensors. They have not been matched
