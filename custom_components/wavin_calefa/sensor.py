@@ -38,6 +38,12 @@ STATE_MAPS = {
         4: "Blokeret varme",
         5: "Blokeret bypass",
     },
+    "dhw_blocking_source": {
+        0: "Ingen",
+        1: "Varmekreds",
+        2: "Standby",
+        3: "Ferie",
+    },
     "circulation_state": {0: "Deaktiveret", 1: "Standby", 2: "Til"},
     "boost_pump_state": {0: "Standby", 1: "Til", 3: "Ikke monteret"},
     "dhw_mode": {0: "Tidsplan", 1: "Adaptiv tidsplan", 2: "Eco", 3: "Comfort"},
@@ -66,33 +72,69 @@ SENSORS: tuple[WavinCalefaSensorDescription, ...] = (
     WavinCalefaSensorDescription(
         key="dhw_state",
         source_key="dhw_state",
-        name="Brugsvand status",
+        name="BVV status",
         icon="mdi:water-boiler",
         enum_map=STATE_MAPS["dhw_state"],
         raw_attribute=True,
+        description_text=(
+            "BVV er varmt brugsvand. Matcher statuslinjen på Calefa-displayets "
+            "varmtvandside."
+        ),
+    ),
+    WavinCalefaSensorDescription(
+        key="dhw_bypass_active",
+        source_key="dhw_bypass_active",
+        name="BVV bypass status",
+        icon="mdi:pipe-valve",
+        enum_map=STATE_MAPS["on_off"],
+        raw_attribute=True,
+        description_text=(
+            "Viser om BVV-bypass er aktiv. Den er udledt af BVV status, hvor "
+            "status 'Bypass' betyder bypass til."
+        ),
+    ),
+    WavinCalefaSensorDescription(
+        key="dhw_blocking_source",
+        source_key="dhw_blocking_source",
+        name="BVV blokeret af",
+        icon="mdi:block-helper",
+        enum_map=STATE_MAPS["dhw_blocking_source"],
+        raw_attribute=True,
+        description_text=(
+            "Matcher feltet 'Blokeret af' på Calefa-displayets varmtvandsside. "
+            "Værdien 0 betyder Ingen."
+        ),
     ),
     WavinCalefaSensorDescription(
         key="dhw_out_temperature",
         source_key="dhw_out_temperature",
-        name="Brugsvand ud temperatur",
+        name="Varmt vand ud (BV)",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         suggested_display_precision=1,
+        description_text=(
+            "BV på Calefa-displayet. Temperaturen på det varme brugsvand ud "
+            "fra varmtvandsveksleren."
+        ),
     ),
     WavinCalefaSensorDescription(
         key="dcw_sensor_temperature",
         source_key="dcw_sensor_temperature",
-        name="Koldtvandsføler ved veksler",
+        name="Koldt vand ind (KV)",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         suggested_display_precision=1,
+        description_text=(
+            "KV på Calefa-displayet. Føleren sidder ved varmtvandsveksleren og "
+            "kan blive varmet op, når der ikke tappes vand."
+        ),
     ),
     WavinCalefaSensorDescription(
         key="domestic_cold_water_flow",
         source_key="domestic_cold_water_flow",
-        name="BVV flow",
+        name="Varmtvandsflow (BVV)",
         icon="mdi:waves-arrow-right",
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement="L/h",
@@ -131,20 +173,26 @@ SENSORS: tuple[WavinCalefaSensorDescription, ...] = (
     WavinCalefaSensorDescription(
         key="source_inlet_temperature",
         source_key="source_inlet_temperature",
-        name="Fjernvarme fremløb temperatur",
+        name="Fjernvarme fremløb (FJF)",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         suggested_display_precision=1,
+        description_text=(
+            "FJF på Calefa-displayet. Fjernvarmefremløb ind i unitten."
+        ),
     ),
     WavinCalefaSensorDescription(
         key="source_return_temperature",
         source_key="source_return_temperature",
-        name="Fjernvarme retur temperatur",
+        name="Fjernvarme retur (FJR)",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         suggested_display_precision=1,
+        description_text=(
+            "FJR på Calefa-displayet. Fjernvarmeretur ud fra unitten."
+        ),
     ),
     WavinCalefaSensorDescription(
         key="source_delta_temperature",
@@ -243,7 +291,7 @@ SENSORS: tuple[WavinCalefaSensorDescription, ...] = (
     WavinCalefaSensorDescription(
         key="valve_position",
         source_key="valve_position",
-        name="BVV ventilposition",
+        name="Varmtvandsventil (BVV)",
         icon="mdi:valve",
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=PERCENTAGE,
@@ -269,7 +317,7 @@ SENSORS: tuple[WavinCalefaSensorDescription, ...] = (
     WavinCalefaSensorDescription(
         key="dhw_power_estimate",
         source_key="dhw_power_estimate",
-        name="Varmtvand effekt estimat",
+        name="Varmtvand effekt estimat (BVV)",
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfPower.KILO_WATT,
@@ -278,7 +326,7 @@ SENSORS: tuple[WavinCalefaSensorDescription, ...] = (
     WavinCalefaSensorDescription(
         key="dhw_energy_estimate",
         source_key="dhw_energy_estimate",
-        name="Varmtvand energi estimat",
+        name="Varmtvand energi estimat (BVV)",
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
@@ -287,7 +335,7 @@ SENSORS: tuple[WavinCalefaSensorDescription, ...] = (
     WavinCalefaSensorDescription(
         key="dhw_temperature_setpoint",
         source_key="dhw_temperature_setpoint",
-        name="Brugsvand setpunkt",
+        name="BVV temperatur setpunkt",
         device_class=SensorDeviceClass.TEMPERATURE,
         entity_category=EntityCategory.DIAGNOSTIC,
         state_class=SensorStateClass.MEASUREMENT,
@@ -297,7 +345,7 @@ SENSORS: tuple[WavinCalefaSensorDescription, ...] = (
     WavinCalefaSensorDescription(
         key="dhw_bypass_temperature",
         source_key="dhw_bypass_temperature",
-        name="Bypass temperatur",
+        name="BVV bypass temperatur",
         device_class=SensorDeviceClass.TEMPERATURE,
         entity_category=EntityCategory.DIAGNOSTIC,
         state_class=SensorStateClass.MEASUREMENT,
@@ -335,7 +383,7 @@ SENSORS: tuple[WavinCalefaSensorDescription, ...] = (
     WavinCalefaSensorDescription(
         key="dhw_mode",
         source_key="dhw_mode",
-        name="Brugsvand mode",
+        name="BVV mode",
         entity_category=EntityCategory.DIAGNOSTIC,
         icon="mdi:tune-variant",
         enum_map=STATE_MAPS["dhw_mode"],

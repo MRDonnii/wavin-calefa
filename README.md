@@ -7,10 +7,9 @@ Modbus TCP.
 
 - Config flow with IP address, port, unit ID and unit name.
 - Local polling, no cloud dependency.
-- Sensors for domestic hot water, estimated hot-water power and energy,
-  district heating temperatures, BVV valve position, CVV valve position,
-  BVV/CVV/district-heating flow, CVV flow/return temperatures, calculated
-  cooling, calculated district-heating power, system pressure and diagnostics.
+- Sensors for domestic hot water (BVV), radiator heat (CVV), district heating
+  (FJF/FJR), valve positions, flows, calculated cooling, calculated power,
+  system pressure and diagnostics.
 - Binary sensors for Calefa warnings and errors.
 - Local icon/logo assets for Home Assistant and HACS.
 
@@ -21,23 +20,37 @@ observed to match the pressure shown on the local Calefa display. The documented
 secondary pressure register `6508` is also available as a disabled diagnostic
 sensor for comparison.
 
-`BVV ventilposition` uses input register `6511` with scale `0.01`. BVV is the
-domestic hot-water valve for the hot-water heat exchanger.
+The hot-water display page has been matched as:
 
-`BVV flow` uses input register `6510` in L/h. `CVV flow` uses input register
-`7306` in L/h. `Fjernvarme flow` uses input register `7307` in L/h.
+- `BV` -> `Varmt vand ud (BV)`, input register `6505`, scale `0.01`.
+- `KV` -> `Koldt vand ind (KV)`, input register `6509`, scale `0.01`.
+- `FJF` -> `Fjernvarme fremløb (FJF)`, input register `6506`, scale `0.01`.
+- `FJR` -> `Fjernvarme retur (FJR)`, input register `6507`, scale `0.01`.
+- `FLOW` -> `Varmtvandsflow (BVV)`, input register `6510`, L/h.
+- `BVV` -> `Varmtvandsventil (BVV)`, input register `6511`, scale `0.01`.
+
+`BVV bypass status` is derived from `BVV status`: when the status is `Bypass`,
+the bypass status is `Til`. `BVV blokeret af` uses input register `6503`; value
+`0` means `Ingen`.
+
+`Varmtvandsflow (BVV)` uses input register `6510` in L/h. `Radiator flow (CVV)`
+uses input register `7306` in L/h. `Fjernvarme flow` uses input register `7307`
+in L/h.
 
 `Fjernvarme effekt` is calculated from `Fjernvarme flow` and `Fjernvarme
 afkøling` as L/h × °C × 1.163 / 1000. It is an operational estimate, not an
 official billing meter.
 
-`CVV ventilposition` uses input register `7304` with scale `0.01`. CVV is the
+`Radiatorventil (CVV)` uses input register `7304` with scale `0.01`. CVV is the
 central-heating valve for the heating/radiator circuit. This has been observed
 to match the heating valve opening shown on the local Calefa display.
 
-`CVV fremløb temperatur` uses holding register `32` with scale `0.01`, and
-`CVV retur temperatur` uses holding register `43` with scale `1`. They represent
-the central-heating/radiator circuit temperatures.
+The radiator display page has been matched as:
+
+- `RT:` -> `Radiator retur (CVV)`, input register `7702`, scale `0.01`.
+- `VF:` -> `Radiator fremløb (CVV)`, input register `7703`, scale `0.01`.
+- `PUM:` -> `Radiatorpumpe status (CVV)`, input register `7704`.
+- Radiator heat request -> `Radiator varmekald (CVV)`, input register `7705`.
 
 The cold-water temperature sensor can be warmed by the heat exchanger when no
 water is flowing. The `Varmtvand effekt estimat` sensor therefore only uses it
