@@ -58,6 +58,12 @@ STATE_MAPS = {
 }
 
 
+def _device_model(coordinator: WavinCalefaCoordinator) -> str:
+    """Return a generic model name based on the reported device type."""
+    device_type = coordinator.data.get("device_type")
+    return STATE_MAPS["device_type"].get(device_type, "Calefa / Sentio")
+
+
 @dataclass(frozen=True, kw_only=True)
 class WavinCalefaSensorDescription(SensorEntityDescription):
     """Wavin Calefa sensor description."""
@@ -495,7 +501,7 @@ class WavinCalefaSensor(
             identifiers={(DOMAIN, entry.entry_id)},
             name=entry.title,
             manufacturer="Wavin",
-            model="Calefa 2",
+            model=_device_model(coordinator),
         )
 
     async def async_added_to_hass(self) -> None:

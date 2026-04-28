@@ -20,6 +20,15 @@ from .const import DOMAIN
 from .coordinator import WavinCalefaCoordinator
 
 
+DEVICE_TYPE_NAMES = {2: "DHW-201 Calefa", 3: "Sentio"}
+
+
+def _device_model(coordinator: WavinCalefaCoordinator) -> str:
+    """Return a generic model name based on the reported device type."""
+    device_type = coordinator.data.get("device_type")
+    return DEVICE_TYPE_NAMES.get(device_type, "Calefa / Sentio")
+
+
 @dataclass(frozen=True, kw_only=True)
 class WavinCalefaBinarySensorDescription(BinarySensorEntityDescription):
     """Wavin Calefa binary sensor description."""
@@ -143,7 +152,7 @@ class WavinCalefaBinarySensor(
             identifiers={(DOMAIN, entry.entry_id)},
             name=entry.title,
             manufacturer="Wavin",
-            model="Calefa 2",
+            model=_device_model(coordinator),
         )
 
     @property
@@ -151,4 +160,3 @@ class WavinCalefaBinarySensor(
         """Return true if the problem is active."""
         value = self.coordinator.data.get(self.entity_description.source_key)
         return bool(value) if value is not None else None
-
