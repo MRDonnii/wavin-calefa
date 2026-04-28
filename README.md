@@ -11,9 +11,9 @@ Modbus TCP.
   shipped in the integration.
 - Setup only blocks on a real TCP/Modbus connection failure. Units with a
   different firmware response on the probe register can still be added.
-- Port `0` in the config flow enables automatic Modbus port detection. The
-  integration tries the entered port first and then known Modbus/Calefa port
-  candidates.
+- The initial config flow scans known Modbus/Calefa port candidates
+  automatically. The detected port is saved in the config entry. In options,
+  port `0` keeps automatic detection enabled and a non-zero port is tried first.
 - Sensors for domestic hot water (BVV), radiator heat (CVV), district heating
   (FJF/FJR), outdoor temperature (UT), valve positions, flows, calculated
   cooling, calculated power, system pressure (PRE) and diagnostics.

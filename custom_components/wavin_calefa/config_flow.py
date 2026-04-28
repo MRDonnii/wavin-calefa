@@ -30,25 +30,27 @@ from .modbus import (
 )
 
 
-def _schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
+def _schema(
+    defaults: dict[str, Any] | None = None, *, include_port: bool = True
+) -> vol.Schema:
     """Build the config flow schema."""
     defaults = defaults or {}
-    return vol.Schema(
-        {
-            vol.Required(CONF_NAME, default=defaults.get(CONF_NAME, DEFAULT_NAME)): str,
-            vol.Required(CONF_HOST, default=defaults.get(CONF_HOST, "")): str,
-            vol.Optional(
-                CONF_PORT, default=defaults.get(CONF_PORT, DEFAULT_PORT)
-            ): vol.All(vol.Coerce(int), vol.Range(min=0, max=65535)),
-            vol.Optional(
-                CONF_UNIT_ID, default=defaults.get(CONF_UNIT_ID, DEFAULT_UNIT_ID)
-            ): vol.All(vol.Coerce(int), vol.Range(min=1, max=247)),
-            vol.Optional(
-                CONF_SCAN_INTERVAL,
-                default=defaults.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
-            ): vol.All(vol.Coerce(int), vol.Range(min=MIN_SCAN_INTERVAL, max=3600)),
-        }
-)
+    fields: dict[Any, Any] = {
+        vol.Required(CONF_NAME, default=defaults.get(CONF_NAME, DEFAULT_NAME)): str,
+        vol.Required(CONF_HOST, default=defaults.get(CONF_HOST, "")): str,
+        vol.Optional(
+            CONF_UNIT_ID, default=defaults.get(CONF_UNIT_ID, DEFAULT_UNIT_ID)
+        ): vol.All(vol.Coerce(int), vol.Range(min=1, max=247)),
+        vol.Optional(
+            CONF_SCAN_INTERVAL,
+            default=defaults.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
+        ): vol.All(vol.Coerce(int), vol.Range(min=MIN_SCAN_INTERVAL, max=3600)),
+    }
+    if include_port:
+        fields[
+            vol.Optional(CONF_PORT, default=defaults.get(CONF_PORT, DEFAULT_PORT))
+        ] = vol.All(vol.Coerce(int), vol.Range(min=0, max=65535))
+    return vol.Schema(fields)
 
 
 def _candidate_ports(requested_port: int) -> tuple[int, ...]:
@@ -102,7 +104,7 @@ class WavinCalefaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             resolved_port = await self.hass.async_add_executor_job(
                 _find_port,
                 host,
-                user_input[CONF_PORT],
+                user_input.get(CONF_PORT, DEFAULT_PORT),
                 user_input[CONF_UNIT_ID],
             )
             if resolved_port is None:
@@ -122,7 +124,7 @@ class WavinCalefaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="user",
-            data_schema=_schema(user_input),
+            data_schema=_schema(user_input, include_port=False),
             errors=errors,
         )
 
@@ -158,5 +160,5 @@ class WavinCalefaOptionsFlow(config_entries.OptionsFlow):
 
         return self.async_show_form(
             step_id="init",
-            data_schema=_schema(self._config_entry.data),
+            data_schema=_schema(self._config_entry.data, include_port=True),
         )
