@@ -47,11 +47,15 @@ INPUT_REGISTERS: dict[str, tuple[int, str]] = {
     "cvv_flow": (7306, "int16"),
     "source_flow": (7307, "int16"),
     "system_pressure": (7310, "pressure100"),
+    "cvv_return_temperature": (7702, "temp100"),
+    "cvv_supply_temperature": (7703, "temp100"),
+    "cvv_pump_state": (7704, "uint16"),
+    "cvv_heat_request": (7705, "uint16"),
 }
 
 HOLDING_REGISTERS: dict[str, tuple[int, str]] = {
-    "cvv_supply_temperature": (32, "temp100"),
-    "cvv_return_temperature": (43, "temp1"),
+    "cvv_supply_setpoint": (32, "temp100"),
+    "cvv_return_legacy": (43, "temp1"),
     "dhw_mode": (6517, "uint16"),
     "dhw_block_request": (6519, "uint16"),
     "dhw_temperature_setpoint": (6521, "temp100"),

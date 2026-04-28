@@ -48,6 +48,7 @@ STATE_MAPS = {
     "boost_pump_mode": {0: "Fra", 1: "Lav", 2: "Høj"},
     "heating_cooling_mode": {0: "Varme", 1: "Køling"},
     "device_type": {2: "DHW-201 Calefa", 3: "Sentio"},
+    "on_off": {0: "Fra", 1: "Til"},
 }
 
 
@@ -104,7 +105,7 @@ SENSORS: tuple[WavinCalefaSensorDescription, ...] = (
     WavinCalefaSensorDescription(
         key="cvv_flow",
         source_key="cvv_flow",
-        name="CVV flow",
+        name="Radiator flow (CVV)",
         icon="mdi:waves-arrow-right",
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement="L/h",
@@ -170,27 +171,53 @@ SENSORS: tuple[WavinCalefaSensorDescription, ...] = (
     WavinCalefaSensorDescription(
         key="cvv_supply_temperature",
         source_key="cvv_supply_temperature",
-        name="CVV fremløb temperatur",
+        name="Radiator fremløb (CVV)",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         suggested_display_precision=1,
         description_text=(
-            "CVV er centralvarmekredsen. Dette er fremløbstemperaturen ud "
-            "mod radiator-/varmekredsen."
+            "CVV er centralvarmekredsen. Denne værdi er matchet mod "
+            "radiator-displayets fremløbstemperatur og læses fra inputregister 7703."
         ),
     ),
     WavinCalefaSensorDescription(
         key="cvv_return_temperature",
         source_key="cvv_return_temperature",
-        name="CVV retur temperatur",
+        name="Radiator retur (CVV)",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         suggested_display_precision=1,
         description_text=(
-            "CVV er centralvarmekredsen. Dette er returtemperaturen tilbage "
-            "fra radiator-/varmekredsen."
+            "CVV er centralvarmekredsen. Denne værdi er matchet mod "
+            "radiator-displayets returtemperatur og læses fra inputregister 7702."
+        ),
+    ),
+    WavinCalefaSensorDescription(
+        key="cvv_pump_state",
+        source_key="cvv_pump_state",
+        name="Radiatorpumpe status (CVV)",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        icon="mdi:pump",
+        enum_map=STATE_MAPS["on_off"],
+        raw_attribute=True,
+        description_text=(
+            "Status for radiatorpumpen i CVV-kredsen. Matcher PUM-linjen "
+            "på radiator-statussiden."
+        ),
+    ),
+    WavinCalefaSensorDescription(
+        key="cvv_heat_request",
+        source_key="cvv_heat_request",
+        name="Radiator varmekald (CVV)",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        icon="mdi:heat-wave",
+        enum_map=STATE_MAPS["on_off"],
+        raw_attribute=True,
+        description_text=(
+            "Indikerer om radiator-/CVV-kredsen kalder på varme. Bruges til "
+            "at validere radiator-statussiden i Calefa-displayet."
         ),
     ),
     WavinCalefaSensorDescription(
@@ -229,7 +256,7 @@ SENSORS: tuple[WavinCalefaSensorDescription, ...] = (
     WavinCalefaSensorDescription(
         key="cvv_valve_position",
         source_key="cvv_valve_position",
-        name="CVV ventilposition",
+        name="Radiatorventil (CVV)",
         icon="mdi:valve",
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=PERCENTAGE,
