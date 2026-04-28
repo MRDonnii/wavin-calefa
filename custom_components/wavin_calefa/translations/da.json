@@ -3,11 +3,11 @@
     "step": {
       "user": {
         "title": "Wavin Calefa",
-        "description": "Opret forbindelse til en Wavin Calefa/Sentio unit via lokal Modbus TCP.",
+        "description": "Opret forbindelse til en Wavin Calefa/Sentio unit via lokal Modbus TCP. Sæt port til 0 for automatisk port-detektion.",
         "data": {
           "name": "Navn",
           "host": "IP-adresse",
-          "port": "Port",
+          "port": "Port (0 = auto)",
           "unit_id": "Modbus unit ID",
           "scan_interval": "Opdateringsinterval"
         }
