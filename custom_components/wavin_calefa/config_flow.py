@@ -20,6 +20,8 @@ from .const import (
     DEFAULT_UNIT_ID,
     DOMAIN,
     MIN_SCAN_INTERVAL,
+    PORT_SCAN_CANDIDATES,
+    PORT_SCAN_TIMEOUT,
 )
 from .modbus import (
     WavinCalefaClient,
@@ -37,7 +39,7 @@ def _schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
             vol.Required(CONF_HOST, default=defaults.get(CONF_HOST, "")): str,
             vol.Optional(
                 CONF_PORT, default=defaults.get(CONF_PORT, DEFAULT_PORT)
-            ): vol.All(vol.Coerce(int), vol.Range(min=1, max=65535)),
+            ): vol.All(vol.Coerce(int), vol.Range(min=0, max=65535)),
             vol.Optional(
                 CONF_UNIT_ID, default=defaults.get(CONF_UNIT_ID, DEFAULT_UNIT_ID)
             ): vol.All(vol.Coerce(int), vol.Range(min=1, max=247)),
@@ -46,7 +48,41 @@ def _schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
                 default=defaults.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
             ): vol.All(vol.Coerce(int), vol.Range(min=MIN_SCAN_INTERVAL, max=3600)),
         }
+)
+
+
+def _candidate_ports(requested_port: int) -> tuple[int, ...]:
+    """Return ordered candidate ports to probe."""
+    ports: list[int] = []
+    if requested_port:
+        ports.append(requested_port)
+    ports.extend(PORT_SCAN_CANDIDATES)
+    return tuple(dict.fromkeys(port for port in ports if 1 <= port <= 65535))
+
+
+def _probe_port(host: str, port: int, unit_id: int) -> bool:
+    """Return true if a port responds like a Modbus TCP endpoint."""
+    client = WavinCalefaClient(
+        host=host,
+        port=port,
+        unit_id=unit_id,
+        timeout=PORT_SCAN_TIMEOUT,
     )
+    try:
+        client.read_register(10)
+    except WavinCalefaConnectionError:
+        return False
+    except WavinCalefaModbusError:
+        return True
+    return True
+
+
+def _find_port(host: str, requested_port: int, unit_id: int) -> int | None:
+    """Find the first reachable Modbus TCP port."""
+    for port in _candidate_ports(requested_port):
+        if _probe_port(host, port, unit_id):
+            return port
+    return None
 
 
 class WavinCalefaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -63,24 +99,20 @@ class WavinCalefaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             host = user_input[CONF_HOST].strip()
             user_input[CONF_HOST] = host
-            await self.async_set_unique_id(
-                f"{host}:{user_input[CONF_PORT]}:{user_input[CONF_UNIT_ID]}"
+            resolved_port = await self.hass.async_add_executor_job(
+                _find_port,
+                host,
+                user_input[CONF_PORT],
+                user_input[CONF_UNIT_ID],
             )
-            self._abort_if_unique_id_configured()
-
-            client = WavinCalefaClient(
-                host=host,
-                port=user_input[CONF_PORT],
-                unit_id=user_input[CONF_UNIT_ID],
-            )
-            try:
-                await self.hass.async_add_executor_job(
-                    client.read_register, 10
-                )
-            except WavinCalefaConnectionError:
+            if resolved_port is None:
                 errors["base"] = "cannot_connect"
-            except WavinCalefaModbusError:
-                pass
+            else:
+                user_input[CONF_PORT] = resolved_port
+                await self.async_set_unique_id(
+                    f"{host}:{resolved_port}:{user_input[CONF_UNIT_ID]}"
+                )
+                self._abort_if_unique_id_configured()
 
             if not errors:
                 return self.async_create_entry(
