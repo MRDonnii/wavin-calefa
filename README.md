@@ -7,6 +7,8 @@ Modbus TCP.
 
 - Config flow with IP address, port, unit ID and unit name.
 - Local polling, no cloud dependency.
+- No installation-specific IP addresses, entity IDs or dashboard references are
+  shipped in the integration.
 - Sensors for domestic hot water (BVV), radiator heat (CVV), district heating
   (FJF/FJR), outdoor temperature (UT), valve positions, flows, calculated
   cooling, calculated power, system pressure (PRE) and diagnostics.
