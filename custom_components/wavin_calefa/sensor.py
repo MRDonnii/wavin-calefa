@@ -140,14 +140,14 @@ SENSORS: tuple[WavinCalefaSensorDescription, ...] = (
     WavinCalefaSensorDescription(
         key="domestic_cold_water_flow",
         source_key="domestic_cold_water_flow",
-        name="Varmtvandsflow (BVV)",
+        name="Varmtvandsflow (FLW)",
         icon="mdi:waves-arrow-right",
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement="L/h",
         suggested_display_precision=0,
         description_text=(
-            "BVV er brugsvandskredsen til varmt brugsvand. Dette er flowet "
-            "gennem varmtvandsdelen."
+            "FLW på Calefa-displayets varmtvandsside. Dette er flowet gennem "
+            "varmtvandsdelen/BVV-kredsen og læses fra inputregister 6510."
         ),
     ),
     WavinCalefaSensorDescription(
