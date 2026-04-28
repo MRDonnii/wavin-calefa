@@ -171,6 +171,19 @@ SENSORS: tuple[WavinCalefaSensorDescription, ...] = (
         ),
     ),
     WavinCalefaSensorDescription(
+        key="outdoor_temperature",
+        source_key="outdoor_temperature",
+        name="Udetemperatur (UT)",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        suggested_display_precision=1,
+        description_text=(
+            "UT på Calefa-displayets følermenu. Udetemperaturen læses fra "
+            "inputregister 20."
+        ),
+    ),
+    WavinCalefaSensorDescription(
         key="source_inlet_temperature",
         source_key="source_inlet_temperature",
         name="Fjernvarme fremløb (FJF)",
@@ -225,8 +238,21 @@ SENSORS: tuple[WavinCalefaSensorDescription, ...] = (
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         suggested_display_precision=1,
         description_text=(
-            "CVV er centralvarmekredsen. Denne værdi er matchet mod "
-            "radiator-displayets fremløbstemperatur og læses fra inputregister 7703."
+            "VF på Calefa-displayets følermenu. Dette er det målte fremløb "
+            "til radiator-/CVV-kredsen og læses fra inputregister 7701."
+        ),
+    ),
+    WavinCalefaSensorDescription(
+        key="cvv_desired_supply_temperature",
+        source_key="cvv_desired_supply_temperature",
+        name="Radiator ønsket fremløb (ØVF)",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        suggested_display_precision=1,
+        description_text=(
+            "ØVF på Calefa-displayets følermenu. Dette er ønsket/beregnet "
+            "fremløbstemperatur til CVV-kredsen og læses fra inputregister 7703."
         ),
     ),
     WavinCalefaSensorDescription(
@@ -238,8 +264,8 @@ SENSORS: tuple[WavinCalefaSensorDescription, ...] = (
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         suggested_display_precision=1,
         description_text=(
-            "CVV er centralvarmekredsen. Denne værdi er matchet mod "
-            "radiator-displayets returtemperatur og læses fra inputregister 7702."
+            "VR på Calefa-displayets følermenu. Dette er returtemperaturen "
+            "fra radiator-/CVV-kredsen og læses fra inputregister 7702."
         ),
     ),
     WavinCalefaSensorDescription(
@@ -276,6 +302,24 @@ SENSORS: tuple[WavinCalefaSensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfPressure.BAR,
         suggested_display_precision=2,
+        description_text=(
+            "PRE på Calefa-displayets følermenu. Matcher anlægstrykket på "
+            "displayet og læses fra inputregister 7310."
+        ),
+    ),
+    WavinCalefaSensorDescription(
+        key="cvv_room_setpoint",
+        source_key="cvv_room_setpoint",
+        name="Radiator setpunkt (SÆT)",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        suggested_display_precision=1,
+        description_text=(
+            "SÆT på Calefa-displayets følermenu. Setpunktet læses fra "
+            "holdingregister 38."
+        ),
     ),
     WavinCalefaSensorDescription(
         key="documented_secondary_pressure",
