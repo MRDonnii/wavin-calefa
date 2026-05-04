@@ -11,14 +11,18 @@ from homeassistant.core import callback
 
 from .const import (
     CONF_HOST,
+    CONF_LANGUAGE,
     CONF_PORT,
     CONF_SCAN_INTERVAL,
     CONF_UNIT_ID,
+    DEFAULT_LANGUAGE,
     DEFAULT_NAME,
     DEFAULT_PORT,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_UNIT_ID,
     DOMAIN,
+    LANGUAGE_CHOICES,
+    LANGUAGE_LABELS,
     MIN_SCAN_INTERVAL,
     PORT_SCAN_CANDIDATES,
     PORT_SCAN_TIMEOUT,
@@ -38,6 +42,10 @@ def _schema(
     fields: dict[Any, Any] = {
         vol.Required(CONF_NAME, default=defaults.get(CONF_NAME, DEFAULT_NAME)): str,
         vol.Required(CONF_HOST, default=defaults.get(CONF_HOST, "")): str,
+        vol.Optional(
+            CONF_LANGUAGE,
+            default=defaults.get(CONF_LANGUAGE, DEFAULT_LANGUAGE),
+        ): vol.In(LANGUAGE_LABELS),
         vol.Optional(
             CONF_UNIT_ID, default=defaults.get(CONF_UNIT_ID, DEFAULT_UNIT_ID)
         ): vol.All(vol.Coerce(int), vol.Range(min=1, max=247)),
@@ -158,7 +166,8 @@ class WavinCalefaOptionsFlow(config_entries.OptionsFlow):
             await self.hass.config_entries.async_reload(self._config_entry.entry_id)
             return self.async_create_entry(title="", data={})
 
+        defaults = {**self._config_entry.data, **self._config_entry.options}
         return self.async_show_form(
             step_id="init",
-            data_schema=_schema(self._config_entry.data, include_port=True),
+            data_schema=_schema(defaults, include_port=True),
         )
