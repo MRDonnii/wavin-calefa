@@ -1,0 +1,6 @@
+{
+  "name": "Wavin Calefa",
+  "render_readme": true,
+  "domains": ["wavin_calefa"],
+  "homeassistant": "2024.8.0"
+}
