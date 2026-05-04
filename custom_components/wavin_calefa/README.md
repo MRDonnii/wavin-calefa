@@ -1,5 +1,5 @@
 <p align="center">
-	<img src="brand/logo.svg" alt="Wavin Calefa logo" width="180" />
+	<img src="brand/logo.png" alt="Wavin Calefa logo" width="180" />
 </p>
 
 <h1 align="center">Wavin Calefa</h1>
