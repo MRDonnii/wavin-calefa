@@ -1,5 +1,5 @@
 <p align="center">
-	<img src="https://raw.githubusercontent.com/MRDonnii/wavin-calefa/main/custom_components/wavin_calefa/brand/logo.svg" alt="Wavin Calefa logo" width="180" />
+	<img src="brand/logo.png" alt="Wavin Calefa logo" width="180" />
 </p>
 
 <h1 align="center">Wavin Calefa</h1>
@@ -125,7 +125,15 @@ Binary sensors with device class problem show active fault state, for example:
 
 ---
 
-## Version 0.2.1
+## Version 0.2.2
+
+- Added calculated radiator forward/return delta for the active CVV/ITC circuit
+- Sentio now hides unsupported HC/CH temperature sensors instead of leaving them as unknown or unavailable
+- Legacy unavailable sensor entities are cleaned up automatically on integration reload
+
+---
+
+## Version 0.2.0
 
 This release includes a major mapping cleanup against the official register specification:
 
