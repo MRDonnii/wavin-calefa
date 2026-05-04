@@ -1,5 +1,5 @@
 <p align="center">
-	<img src="custom_components/wavin_calefa/brand/logo.png" alt="Wavin Calefa logo" width="180" />
+	<img src="custom_components/wavin_calefa/brand/logo.svg" alt="Wavin Calefa logo" width="180" />
 </p>
 
 <h1 align="center">Wavin Calefa</h1>
@@ -125,7 +125,7 @@ Binary sensors with device class problem show active fault state, for example:
 
 ---
 
-## Version 0.2.0
+## Version 0.2.1
 
 This release includes a major mapping cleanup against the official register specification:
 
