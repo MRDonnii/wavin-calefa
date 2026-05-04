@@ -1,5 +1,5 @@
 <p align="center">
-	<img src="https://raw.githubusercontent.com/MRDonnii/wavin-calefa/main/custom_components/wavin_calefa/brand/logo.png" alt="Wavin Calefa logo" width="180" />
+	<img src="https://raw.githubusercontent.com/MRDonnii/wavin-calefa/main/custom_components/wavin_calefa/brand/logo.svg" alt="Wavin Calefa logo" width="180" />
 </p>
 
 <h1 align="center">Wavin Calefa</h1>
