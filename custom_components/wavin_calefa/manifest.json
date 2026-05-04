@@ -1,0 +1,13 @@
+{
+  "domain": "wavin_calefa",
+  "name": "Wavin Calefa",
+  "codeowners": [
+    "@MRDonnii"
+  ],
+  "config_flow": true,
+  "documentation": "https://github.com/MRDonnii/wavin-calefa",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/MRDonnii/wavin-calefa/issues",
+  "requirements": [],
+  "version": "0.2.1"
+}
