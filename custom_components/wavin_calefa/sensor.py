@@ -37,6 +37,16 @@ from .const import (
 from .coordinator import WavinCalefaCoordinator
 
 
+UNSUPPORTED_SENSOR_KEYS_BY_DEVICE_TYPE: dict[int, set[str]] = {
+    3: {
+        "ch_desired_inlet_temperature",
+        "hc_supply_temperature",
+        "hc_return_temperature",
+        "hc_delta_temperature",
+    }
+}
+
+
 STATE_MAPS = {
     "dhw_state": {
         0: "Standby",
@@ -60,7 +70,7 @@ STATE_MAPS = {
         3: "Automatisk",
         4: "Manuel",
         5: "Fjernstyring",
-        6: "HEX s\u00f8gning",
+        6: "HEX søgning",
     },
     "dhw_regulator_state": {
         0: "Standby",
@@ -81,7 +91,7 @@ STATE_MAPS = {
         5: "Fjernstyring",
         6: "Blokeret af DHW",
     },
-    "boost_pump_mode": {0: "Fra", 1: "Lav", 2: "H\u00f8j"},
+    "boost_pump_mode": {0: "Fra", 1: "Lav", 2: "Høj"},
     "flow_sensor_type": {0: "H210 DN8", 1: "H210 DN10"},
     "dhw_mode": {0: "Tidsplan", 1: "Adaptiv tidsplan", 2: "Eco", 3: "Comfort"},
     "dhw_block_request": {0: "Ingen", 1: "Blokeret"},
@@ -103,6 +113,7 @@ SENSOR_NAMES_DA: dict[str, str] = {
     "cvv_supply_temperature": "CVV fremlob",
     "cvv_desired_supply_temperature": "CVV onsket fremlob",
     "cvv_return_temperature": "CVV retur",
+    "cvv_delta_temperature": "CVV afkoling",
     "itc_pump_demand": "CVV pumpe kald",
     "itc_pump_status": "CVV pumpe status",
     "dhw_control_mode": "BVV styre-mode",
@@ -114,6 +125,7 @@ SENSOR_NAMES_DA: dict[str, str] = {
     "ch_desired_inlet_temperature": "Varme onsket indlob (CH)",
     "hc_supply_temperature": "Varme fremlob (HC)",
     "hc_return_temperature": "Varme retur (HC)",
+    "hc_delta_temperature": "Radiator frem/retur delta (HC)",
     "system_pressure": "Anlaegstryk",
     "itc_max_outdoor_temp": "ITC max udetemperatur",
     "documented_secondary_pressure": "Dokumenteret sekundartryk",
@@ -148,6 +160,15 @@ def _device_model(coordinator: WavinCalefaCoordinator) -> str:
     """Return a generic model name based on the reported device type."""
     device_type = coordinator.data.get("device_type")
     return STATE_MAPS["device_type"].get(device_type, "Calefa / Sentio")
+
+
+def _supported_sensors(coordinator: WavinCalefaCoordinator) -> tuple[WavinCalefaSensorDescription, ...]:
+    """Return only sensors supported by the detected device type."""
+    device_type = coordinator.data.get("device_type")
+    unsupported_keys = UNSUPPORTED_SENSOR_KEYS_BY_DEVICE_TYPE.get(device_type, set())
+    return tuple(
+        description for description in SENSORS if description.key not in unsupported_keys
+    )
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -276,6 +297,15 @@ SENSORS: tuple[WavinCalefaSensorDescription, ...] = (
         suggested_display_precision=1,
     ),
     WavinCalefaSensorDescription(
+        key="cvv_delta_temperature",
+        source_key="cvv_delta_temperature",
+        name="Heating delta (ITC)",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        suggested_display_precision=1,
+    ),
+    WavinCalefaSensorDescription(
         key="itc_pump_demand",
         source_key="itc_pump_demand",
         name="Heating pump demand (ITC)",
@@ -371,6 +401,16 @@ SENSORS: tuple[WavinCalefaSensorDescription, ...] = (
         key="hc_return_temperature",
         source_key="hc_return_temperature",
         name="Heating return (HC)",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        suggested_display_precision=1,
+    ),
+    WavinCalefaSensorDescription(
+        key="hc_delta_temperature",
+        source_key="hc_delta_temperature",
+        name="Heating delta (HC)",
         device_class=SensorDeviceClass.TEMPERATURE,
         entity_category=EntityCategory.DIAGNOSTIC,
         state_class=SensorStateClass.MEASUREMENT,
@@ -745,6 +785,19 @@ SENSORS: tuple[WavinCalefaSensorDescription, ...] = (
         ),
     ),
     WavinCalefaSensorDescription(
+        key="cvv_delta_temperature",
+        source_key="cvv_delta_temperature",
+        name="Radiator delta (CVV)",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        suggested_display_precision=1,
+        description_text=(
+            "Beregnet som radiator-/CVV-fremløb minus radiator-/CVV-retur "
+            "baseret på inputregister 7701 og 7702."
+        ),
+    ),
+    WavinCalefaSensorDescription(
         key="cvv_pump_state",
         source_key="cvv_pump_state",
         name="Radiatorpumpe status (CVV)",
@@ -943,7 +996,8 @@ async def async_setup_entry(
     """Set up Wavin Calefa sensors."""
     coordinator: WavinCalefaCoordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_entities(
-        WavinCalefaSensor(coordinator, entry, description) for description in SENSORS
+        WavinCalefaSensor(coordinator, entry, description)
+        for description in _supported_sensors(coordinator)
     )
 
 
