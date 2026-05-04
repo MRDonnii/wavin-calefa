@@ -24,6 +24,9 @@ from .modbus import WavinCalefaClient, WavinCalefaError, signed16
 
 LOGGER = logging.getLogger(__name__)
 
+# DHW-21x docs: val_d2_fp100 uses 0x7FFF as INVALID_VALUE.
+INVALID_FP100 = 0x7FFF
+
 
 INPUT_REGISTERS: dict[str, tuple[int, str]] = {
     "device_type": (10, "uint16"),
@@ -42,52 +45,70 @@ INPUT_REGISTERS: dict[str, tuple[int, str]] = {
     "dcw_sensor_temperature": (6509, "temp100"),
     "domestic_cold_water_flow": (6510, "int16"),
     "valve_position": (6511, "percent100"),
-    "boost_pump_state": (6512, "uint16"),
+    "dhw_control_mode": (6512, "uint16"),
+    "dhw_regulator_state": (6513, "uint16"),
+    "dhw_motor_stall_level": (6514, "uint16"),
+    "dhw_boost_state": (6515, "uint16"),
+    "ch_state": (7301, "uint16"),
+    "ch_blocking_source": (7302, "uint16"),
+    "ch_regulator_state": (7303, "uint16"),
     "cvv_valve_position": (7304, "percent100"),
-    "cvv_flow": (7306, "int16"),
-    "source_flow": (7307, "int16"),
+    "ch_desired_inlet_temperature": (7305, "temp100"),
+    "hc_supply_temperature": (7308, "temp100"),
+    "hc_return_temperature": (7309, "temp100"),
     "system_pressure": (7310, "pressure100"),
     "cvv_supply_temperature": (7701, "temp100"),
     "cvv_return_temperature": (7702, "temp100"),
     "cvv_desired_supply_temperature": (7703, "temp100"),
-    "cvv_pump_state": (7704, "uint16"),
-    "cvv_heat_request": (7705, "uint16"),
+    "itc_pump_demand": (7704, "uint16"),
+    "itc_pump_status": (7705, "uint16"),
 }
 
 HOLDING_REGISTERS: dict[str, tuple[int, str]] = {
-    "cvv_supply_setpoint": (32, "temp100"),
-    "cvv_room_setpoint": (38, "temp100"),
-    "cvv_return_legacy": (43, "temp1"),
+    "itc_max_outdoor_temp": (38, "temp1"),
     "dhw_mode": (6517, "uint16"),
     "dhw_block_request": (6519, "uint16"),
     "dhw_temperature_setpoint": (6521, "temp100"),
     "dhw_bypass_temperature": (6522, "temp100"),
-    "circulation_pump_present": (6523, "uint16"),
-    "circulation_inlet_temperature": (6524, "temp100"),
-    "exclude_from_vacation": (6525, "uint16"),
-    "exclude_from_standby": (6526, "uint16"),
-    "boost_pump_mode": (6527, "uint16"),
+    "circulation_pump_enable": (6523, "uint16"),
+    "circulation_temperature": (6524, "temp100"),
+    "allow_vacation": (6525, "uint16"),
+    "allow_standby": (6526, "uint16"),
+    "flow_sensor_type": (6527, "uint16"),
+    "boost_pump_mode": (6531, "uint16"),
 }
 
 DISCRETE_INPUTS: dict[str, int] = {
     "warning_low_energy": 6503,
     "error_dhw_temperature_high": 6504,
-    "error_motor_failure": 6505,
-    "error_source_inlet_sensor": 6506,
-    "error_source_return_sensor": 6507,
-    "error_dhw_sensor": 6508,
-    "error_dcw_sensor": 6509,
+    "dhw_motor_failure": 6505,
+    "dhi_sensor_failure": 6506,
+    "dho_sensor_failure": 6507,
+    "dhw_sensor_failure": 6508,
+    "dcw_sensor_failure": 6509,
     "warning_pressure_high": 6510,
     "warning_pressure_low": 6511,
     "error_pressure_critical_low": 6512,
-    "error_flow_sensor": 6513,
+    "no_secondary_pressure": 6513,
+    "pressure_sensor_failure": 6514,
+    "flow_sensor_failure": 6515,
+    "dhi_frost_protection": 6516,
+    "dhw_motor_stuck": 6517,
+    "itc_hs_sensor_failure": 7701,
+    "itc_hr_sensor_failure": 7702,
+    "outdoor_sensor_failure": 7703,
+    "itc_motor_failure": 7704,
+    "itc_htco_error": 7705,
+    "itc_hs_frost_protection": 7706,
 }
 
 
-def _convert(raw: int, kind: str) -> int | float:
+def _convert(raw: int, kind: str) -> int | float | None:
     """Convert a raw register value."""
     if kind == "uint16":
         return raw
+    if kind in {"temp100", "pressure100", "percent100"} and raw == INVALID_FP100:
+        return None
     value = signed16(raw)
     if kind in {"temp100", "pressure100", "percent100"}:
         return round(value * 0.01, 2)
@@ -160,12 +181,7 @@ class WavinCalefaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         dhw_state = data.get("dhw_state")
         if isinstance(dhw_state, int):
-            data["dhw_bypass_active"] = 1 if dhw_state == 3 else 0
-
-        source_flow = data.get("source_flow")
-        source_delta = data.get("source_delta_temperature")
-        if isinstance(source_flow, (int, float)) and isinstance(source_delta, (int, float)):
-            data["source_power"] = round(max(0.0, source_flow * source_delta * 1.163 / 1000), 3)
+            data["dhw_bypass_active"] = 1 if dhw_state == 2 else 0
 
         flow = data.get("domestic_cold_water_flow")
         dhw = data.get("dhw_out_temperature")
