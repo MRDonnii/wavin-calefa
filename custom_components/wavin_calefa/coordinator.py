@@ -179,6 +179,16 @@ class WavinCalefaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if isinstance(inlet, (int, float)) and isinstance(ret, (int, float)):
             data["source_delta_temperature"] = round(inlet - ret, 2)
 
+        cvv_supply = data.get("cvv_supply_temperature")
+        cvv_return = data.get("cvv_return_temperature")
+        if isinstance(cvv_supply, (int, float)) and isinstance(cvv_return, (int, float)):
+            data["cvv_delta_temperature"] = round(cvv_supply - cvv_return, 2)
+
+        hc_supply = data.get("hc_supply_temperature")
+        hc_return = data.get("hc_return_temperature")
+        if isinstance(hc_supply, (int, float)) and isinstance(hc_return, (int, float)):
+            data["hc_delta_temperature"] = round(hc_supply - hc_return, 2)
+
         dhw_state = data.get("dhw_state")
         if isinstance(dhw_state, int):
             data["dhw_bypass_active"] = 1 if dhw_state == 2 else 0
