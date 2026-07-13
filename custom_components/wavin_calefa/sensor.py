@@ -127,7 +127,7 @@ SENSOR_NAMES_DA: dict[str, str] = {
     "hc_return_temperature": "Varme retur (HC)",
     "hc_delta_temperature": "Radiator frem/retur delta (HC)",
     "system_pressure": "Anlaegstryk",
-    "itc_max_outdoor_temp": "ITC max udetemperatur",
+    "itc_max_outdoor_temp": "Sommerudkobling",
     "documented_secondary_pressure": "Dokumenteret sekundartryk",
     "valve_position": "Varmtvandsventil (BVV)",
     "cvv_valve_position": "Radiatorventil (CVV)",
@@ -429,7 +429,7 @@ SENSORS: tuple[WavinCalefaSensorDescription, ...] = (
     WavinCalefaSensorDescription(
         key="itc_max_outdoor_temp",
         source_key="itc_max_outdoor_temp",
-        name="ITC max outdoor temp",
+        name="Summer shutdown temperature",
         device_class=SensorDeviceClass.TEMPERATURE,
         entity_category=EntityCategory.DIAGNOSTIC,
         state_class=SensorStateClass.MEASUREMENT,
