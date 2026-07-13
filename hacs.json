@@ -1,5 +1,7 @@
 {
   "name": "Wavin Calefa",
   "content_in_root": false,
-  "homeassistant": "2024.8.0"
+  "domains": ["wavin_calefa"],
+  "homeassistant": "2024.8.0",
+  "render_readme": true
 }
