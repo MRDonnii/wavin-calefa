@@ -37,6 +37,63 @@
     }
   },
   "entity": {
+    "number": {
+      "room_temporary_temperature": {"name": "Midlertidig rumtemperatur"},
+      "room_temporary_duration": {"name": "Midlertidig rumvarighed"},
+      "heat_curve_manual_slope": {"name": "Manuel varmekurvehældning"},
+      "summer_shutdown_temperature": {"name": "Sommerudkobling"},
+      "heat_curve_parallel_shift": {"name": "Varmekurve parallelforskydning"},
+      "heat_curve_min_supply_temperature": {"name": "Varmekurve minimum fremløb"},
+      "heat_curve_max_supply_temperature": {"name": "Varmekurve maksimum fremløb"},
+      "return_limiter_max_temperature": {"name": "Maksimum returtemperatur"},
+      "return_limiter_max_gain": {"name": "Forstærkning maksimum retur"},
+      "dhw_temperature_setpoint_control": {"name": "Brugsvandstemperatur"},
+      "dhw_bypass_temperature_control": {"name": "Bypass-temperatur"},
+      "circulation_temperature_control": {"name": "Cirkulationstemperatur"}
+    },
+    "select": {
+      "room_mode": {
+        "name": "RUM mode",
+        "state": {
+          "eco": "Øko",
+          "comfort": "Komfort",
+          "extra_comfort": "Ekstra komfort"
+        }
+      },
+      "return_limiter_mode": {
+        "name": "Returbegrænser tilstand",
+        "state": {
+          "off": "Fra",
+          "maximum": "Maksimum"
+        }
+      },
+      "heat_curve_type": {
+        "name": "Varmekurvetype",
+        "state": {
+          "manual": "Manuel",
+          "floor_heating": "Gulvvarme",
+          "radiator": "Radiator"
+        }
+      },
+      "dhw_mode_control": {
+        "name": "Brugsvandstilstand",
+        "state": {
+          "schedule": "Tidsplan",
+          "adaptive_schedule": "Adaptiv tidsplan",
+          "eco": "Eco",
+          "comfort": "Comfort"
+        }
+      }
+    },
+    "switch": {
+      "standby": {"name": "Standby"},
+      "vacation": {"name": "Ferie"},
+      "vacation_for_dhw": {"name": "Ferie for brugsvand"},
+      "vacation_for_ch": {"name": "Ferie for centralvarme"},
+      "room_schedule": {"name": "RUM planlagt skema"},
+      "room_temporary_mode": {"name": "Midlertidig RUM mode"},
+      "return_limiter_priority_over_supply": {"name": "Returbegrænser prioritet over fremløb"}
+    },
     "sensor": {
       "dhw_state": {"name": "BVV status"},
       "dhw_bypass_active": {"name": "BVV bypass"},
@@ -63,7 +120,7 @@
       "hc_supply_temperature": {"name": "Varme fremlob (HC)"},
       "hc_return_temperature": {"name": "Varme retur (HC)"},
       "system_pressure": {"name": "Anlægstryk"},
-      "itc_max_outdoor_temp": {"name": "ITC max udetemperatur"},
+      "itc_max_outdoor_temp": {"name": "Sommerudkobling"},
       "documented_secondary_pressure": {"name": "Dokumenteret sekundærtryk"},
       "valve_position": {"name": "Varmtvandsventil (BVV)"},
       "cvv_valve_position": {"name": "Radiatorventil (CVV)"},
