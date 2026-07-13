@@ -15,6 +15,7 @@ from .entity_helpers import (
     GROUP_HEATING,
     GROUP_ROOM,
     control_device_info,
+    is_danish,
     localized_name,
 )
 
@@ -43,6 +44,30 @@ ROOM_MODE_SOURCES = {
     "extra_comfort": "room_extra_comfort_temperature",
 }
 
+DANISH_DHW_MODES = {
+    "Skema": 0,
+    "Adaptivt skema": 1,
+    "Øko": 2,
+    "Komfort": 3,
+}
+
+DANISH_HEAT_CURVE_TYPES = {
+    "Manuel": 0,
+    "Gulvvarme": 2,
+    "Radiator": 3,
+}
+
+DANISH_RETURN_LIMITER_MODES = {
+    "Fra": 0,
+    "Maksimum": 2,
+}
+
+DANISH_ROOM_MODE_SOURCES = {
+    "Øko": "room_eco_temperature",
+    "Komfort": "room_comfort_temperature",
+    "Ekstra komfort": "room_extra_comfort_temperature",
+}
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -68,13 +93,17 @@ class WavinCalefaDhwModeSelect(
 
     _attr_has_entity_name = True
     _attr_icon = "mdi:water-boiler-cog"
-    _attr_options = list(DHW_MODES)
-
     def __init__(
         self, coordinator: WavinCalefaCoordinator, entry: ConfigEntry
     ) -> None:
         """Initialize the control."""
         super().__init__(coordinator)
+        self._modes = (
+            DANISH_DHW_MODES
+            if is_danish(coordinator.hass, entry)
+            else DHW_MODES
+        )
+        self._attr_options = list(self._modes)
         self._attr_unique_id = f"{entry.entry_id}_dhw_mode_control"
         self._attr_name = localized_name(
             coordinator.hass, entry, "Bypass-mode", "Bypass mode"
@@ -88,16 +117,16 @@ class WavinCalefaDhwModeSelect(
         """Return the mode read directly from the unit."""
         raw_mode = self.coordinator.data.get("dhw_mode")
         return next(
-            (option for option, raw in DHW_MODES.items() if raw == raw_mode),
+            (option for option, raw in self._modes.items() if raw == raw_mode),
             None,
         )
 
     async def async_select_option(self, option: str) -> None:
         """Write the selected mode and verify it directly on the unit."""
-        if option not in DHW_MODES:
+        if option not in self._modes:
             raise ValueError(f"Unsupported DHW mode: {option}")
         await self.coordinator.async_write_holding_register(
-            6517, DHW_MODES[option]
+            6517, self._modes[option]
         )
 
 
@@ -108,13 +137,17 @@ class WavinCalefaHeatCurveTypeSelect(
 
     _attr_has_entity_name = True
     _attr_icon = "mdi:chart-bell-curve"
-    _attr_options = list(HEAT_CURVE_TYPES)
-
     def __init__(
         self, coordinator: WavinCalefaCoordinator, entry: ConfigEntry
     ) -> None:
         """Initialize the control."""
         super().__init__(coordinator)
+        self._types = (
+            DANISH_HEAT_CURVE_TYPES
+            if is_danish(coordinator.hass, entry)
+            else HEAT_CURVE_TYPES
+        )
+        self._attr_options = list(self._types)
         self._attr_unique_id = f"{entry.entry_id}_heat_curve_type"
         self._attr_name = localized_name(
             coordinator.hass,
@@ -131,16 +164,16 @@ class WavinCalefaHeatCurveTypeSelect(
         """Return the profile read directly from the unit."""
         raw_type = self.coordinator.data.get("heat_curve_type")
         return next(
-            (option for option, raw in HEAT_CURVE_TYPES.items() if raw == raw_type),
+            (option for option, raw in self._types.items() if raw == raw_type),
             None,
         )
 
     async def async_select_option(self, option: str) -> None:
         """Select a profile and let Calefa apply its profile presets."""
-        if option not in HEAT_CURVE_TYPES:
+        if option not in self._types:
             raise ValueError(f"Unsupported heat curve type: {option}")
         await self.coordinator.async_write_holding_register(
-            7702, HEAT_CURVE_TYPES[option]
+            7702, self._types[option]
         )
 
 
@@ -151,13 +184,17 @@ class WavinCalefaReturnLimiterModeSelect(
 
     _attr_has_entity_name = True
     _attr_icon = "mdi:thermometer-chevron-down"
-    _attr_options = list(RETURN_LIMITER_MODES)
-
     def __init__(
         self, coordinator: WavinCalefaCoordinator, entry: ConfigEntry
     ) -> None:
         """Initialize the control."""
         super().__init__(coordinator)
+        self._modes = (
+            DANISH_RETURN_LIMITER_MODES
+            if is_danish(coordinator.hass, entry)
+            else RETURN_LIMITER_MODES
+        )
+        self._attr_options = list(self._modes)
         self._attr_unique_id = f"{entry.entry_id}_return_limiter_mode"
         self._attr_name = localized_name(
             coordinator.hass,
@@ -174,16 +211,16 @@ class WavinCalefaReturnLimiterModeSelect(
         """Return the mode read directly from the unit."""
         raw_mode = self.coordinator.data.get("return_limiter_mode")
         return next(
-            (option for option, raw in RETURN_LIMITER_MODES.items() if raw == raw_mode),
+            (option for option, raw in self._modes.items() if raw == raw_mode),
             None,
         )
 
     async def async_select_option(self, option: str) -> None:
         """Write and verify the selected return-limiter mode."""
-        if option not in RETURN_LIMITER_MODES:
+        if option not in self._modes:
             raise ValueError(f"Unsupported return-limiter mode: {option}")
         await self.coordinator.async_write_holding_register(
-            7713, RETURN_LIMITER_MODES[option]
+            7713, self._modes[option]
         )
 
 
@@ -194,13 +231,17 @@ class WavinCalefaRoomModeSelect(
 
     _attr_has_entity_name = True
     _attr_icon = "mdi:home-thermometer"
-    _attr_options = list(ROOM_MODE_SOURCES)
-
     def __init__(
         self, coordinator: WavinCalefaCoordinator, entry: ConfigEntry
     ) -> None:
         """Initialize the control."""
         super().__init__(coordinator)
+        self._sources = (
+            DANISH_ROOM_MODE_SOURCES
+            if is_danish(coordinator.hass, entry)
+            else ROOM_MODE_SOURCES
+        )
+        self._attr_options = list(self._sources)
         self._attr_unique_id = f"{entry.entry_id}_room_mode"
         self._attr_name = localized_name(
             coordinator.hass, entry, "Komfortprofil", "Comfort profile"
@@ -218,7 +259,7 @@ class WavinCalefaRoomModeSelect(
         return next(
             (
                 option
-                for option, source_key in ROOM_MODE_SOURCES.items()
+                for option, source_key in self._sources.items()
                 if self.coordinator.data.get(source_key) == active
             ),
             None,
@@ -226,7 +267,7 @@ class WavinCalefaRoomModeSelect(
 
     async def async_select_option(self, option: str) -> None:
         """Write the current temperature of the selected preset."""
-        source_key = ROOM_MODE_SOURCES.get(option)
+        source_key = self._sources.get(option)
         if source_key is None:
             raise ValueError(f"Unsupported room mode: {option}")
         temperature = self.coordinator.data.get(source_key)
