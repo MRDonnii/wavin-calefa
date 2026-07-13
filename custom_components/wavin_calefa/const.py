@@ -32,6 +32,6 @@ MIN_SCAN_INTERVAL = 10
 PORT_SCAN_TIMEOUT = 1.0
 PORT_SCAN_CANDIDATES = (10223, 502, 5020, 5021, 5022, 5023, 1502, 10502, 2000)
 
-PLATFORMS = ["sensor", "binary_sensor"]
+PLATFORMS = ["sensor", "binary_sensor", "number", "select", "switch"]
 
 UPDATE_INTERVAL = timedelta(seconds=DEFAULT_SCAN_INTERVAL)
