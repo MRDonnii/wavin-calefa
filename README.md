@@ -25,13 +25,13 @@
 - Separate Home Assistant devices for system, heating, room control, and domestic hot water
 - Local icon and logo assets for Home Assistant 2026.3 and newer
 
-## Writable controls in 0.3.0
+## Writable controls in 0.3.1
 
 ### Heating and heat curve
 
 - Standby and vacation mode
 - Vacation for central heating
-- Heat-curve type: manual, floor heating, or radiator
+- Heat-curve type: manual, floor heating, or radiator, localized for Danish installations
 - Manual slope
 - Parallel shift
 - Minimum and maximum supply temperature
@@ -41,7 +41,7 @@
 ### Room control
 
 - Eco, comfort, and extra-comfort temperatures
-- Active comfort profile
+- Active comfort profile with localized selectable values
 - Schedule on or off
 - Temporary temperature, duration, and mode
 
