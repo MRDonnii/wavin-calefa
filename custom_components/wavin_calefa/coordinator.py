@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+import asyncio
 import logging
 from typing import Any
 
@@ -20,7 +21,12 @@ from .const import (
     DEFAULT_UNIT_ID,
     DOMAIN,
 )
-from .modbus import WavinCalefaClient, WavinCalefaError, signed16
+from .modbus import (
+    WavinCalefaClient,
+    WavinCalefaError,
+    WavinCalefaModbusError,
+    signed16,
+)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -65,17 +71,38 @@ INPUT_REGISTERS: dict[str, tuple[int, str]] = {
 }
 
 HOLDING_REGISTERS: dict[str, tuple[int, str]] = {
-    "itc_max_outdoor_temp": (38, "temp1"),
+    "standby": (26, "uint16"),
+    "vacation": (27, "uint16"),
+    "itc_max_outdoor_temp": (38, "temp100"),
+    "heat_curve_manual_slope": (7701, "decimal10"),
+    "heat_curve_type": (7702, "uint16"),
+    "heat_curve_parallel_shift": (7705, "temp100"),
+    "heat_curve_min_supply_temperature": (7706, "temp100"),
+    "heat_curve_max_supply_temperature": (7707, "temp100"),
+    "return_limiter_mode": (7713, "uint16"),
+    "return_limiter_max_temperature": (7716, "temp100"),
+    "return_limiter_max_gain": (7717, "decimal10"),
+    "return_limiter_priority_over_supply": (7718, "uint16"),
     "dhw_mode": (6517, "uint16"),
     "dhw_block_request": (6519, "uint16"),
     "dhw_temperature_setpoint": (6521, "temp100"),
     "dhw_bypass_temperature": (6522, "temp100"),
     "circulation_pump_enable": (6523, "uint16"),
     "circulation_temperature": (6524, "temp100"),
-    "allow_vacation": (6525, "uint16"),
+    "vacation_for_dhw": (6525, "uint16"),
     "allow_standby": (6526, "uint16"),
     "flow_sensor_type": (6527, "uint16"),
     "boost_pump_mode": (6531, "uint16"),
+    "room_mode_temperature": (7501, "temp100"),
+    "room_eco_temperature": (7502, "temp100"),
+    "room_comfort_temperature": (7503, "temp100"),
+    "room_extra_comfort_temperature": (7504, "temp100"),
+    "vacation_for_ch": (7505, "uint16"),
+    "room_schedule_disabled": (7508, "uint16"),
+    "room_temporary_mode": (7509, "uint16"),
+    "room_temporary_expiry_high": (7510, "uint16"),
+    "room_temporary_expiry_low": (7511, "uint16"),
+    "room_temporary_temperature": (7512, "temp100"),
 }
 
 DISCRETE_INPUTS: dict[str, int] = {
@@ -112,6 +139,8 @@ def _convert(raw: int, kind: str) -> int | float | None:
     value = signed16(raw)
     if kind in {"temp100", "pressure100", "percent100"}:
         return round(value * 0.01, 2)
+    if kind == "decimal10":
+        return round(value * 0.1, 1)
     if kind == "temp1":
         return value
     if kind == "int16":
@@ -130,6 +159,7 @@ class WavinCalefaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             port=entry.data.get(CONF_PORT, DEFAULT_PORT),
             unit_id=entry.data.get(CONF_UNIT_ID, DEFAULT_UNIT_ID),
         )
+        self._write_lock = asyncio.Lock()
         scan_interval = entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
         super().__init__(
             hass,
@@ -137,6 +167,52 @@ class WavinCalefaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             name=DOMAIN,
             update_interval=timedelta(seconds=scan_interval),
         )
+
+    async def async_write_holding_register(
+        self, address: int, raw_value: int
+    ) -> None:
+        """Write one holding register and require a matching readback."""
+        await self.async_write_holding_registers({address: raw_value})
+
+    async def async_write_holding_registers(
+        self, register_values: dict[int, int]
+    ) -> None:
+        """Write related registers together with verification and rollback."""
+        async with self._write_lock:
+            previous: dict[int, int] = {}
+            try:
+                for address in register_values:
+                    previous[address] = await self.hass.async_add_executor_job(
+                        lambda target=address: self.client.read_register(
+                            target, input_type="holding"
+                        )
+                    )
+                for address, raw_value in register_values.items():
+                    await self.hass.async_add_executor_job(
+                        self.client.write_register, address, raw_value
+                    )
+                for address, raw_value in register_values.items():
+                    readback = await self.hass.async_add_executor_job(
+                        lambda target=address: self.client.read_register(
+                            target, input_type="holding"
+                        )
+                    )
+                    if readback != raw_value:
+                        raise WavinCalefaModbusError(
+                            f"Readback mismatch at address {address}"
+                        )
+            except (WavinCalefaError, ValueError):
+                for address, old_value in previous.items():
+                    try:
+                        await self.hass.async_add_executor_job(
+                            self.client.write_register, address, old_value
+                        )
+                    except WavinCalefaError:
+                        LOGGER.exception(
+                            "Rollback failed for holding register %s", address
+                        )
+                raise
+            await self.async_request_refresh()
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Update data from the unit."""

@@ -77,6 +77,22 @@ class WavinCalefaClient:
             raise WavinCalefaModbusError(f"No register data at address {address}")
         return struct.unpack(">H", body[2:4])[0]
 
+    def write_register(self, address: int, value: int) -> None:
+        """Write and verify the Modbus function 6 response."""
+        if not 0 <= value <= 0xFFFF:
+            raise ValueError(f"Register value outside uint16 range: {value}")
+
+        body = self._request(6, address, value)
+        if len(body) < 5:
+            raise WavinCalefaModbusError(
+                f"Short write response at address {address}"
+            )
+        response_address, response_value = struct.unpack(">HH", body[1:5])
+        if response_address != address or response_value != value:
+            raise WavinCalefaModbusError(
+                f"Write response mismatch at address {address}"
+            )
+
     def read_discrete_input(self, address: int) -> bool:
         """Read a single discrete input."""
         body = self._request(2, address, 1)
@@ -88,4 +104,3 @@ class WavinCalefaClient:
 def signed16(value: int) -> int:
     """Convert unsigned 16-bit integer to signed integer."""
     return value - 65536 if value >= 32768 else value
-
