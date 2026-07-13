@@ -1,152 +1,112 @@
 <p align="center">
-	<img src="brand/logo.png" alt="Wavin Calefa logo" width="180" />
+  <img src="custom_components/wavin_calefa/brand/logo.png" alt="Wavin Calefa logo" width="300">
 </p>
 
 <h1 align="center">Wavin Calefa</h1>
 
 <p align="center">
-	Local Home Assistant integration for Wavin Calefa 2 and Sentio via Modbus TCP.<br>
-	Fast overview, operational status, fault indicators, and data for smarter heating control.
+  Local Home Assistant integration for Wavin Calefa 2 and Sentio over Modbus TCP.
 </p>
 
 <p align="center">
-	<a href="https://github.com/hacs/integration"><img src="https://img.shields.io/badge/HACS-Custom-orange.svg" alt="HACS"></a>
-	<a href="https://github.com/MRDonnii/wavin-calefa/releases"><img src="https://img.shields.io/github/release/MRDonnii/wavin-calefa.svg" alt="GitHub Release"></a>
-	<a href="https://www.home-assistant.io/"><img src="https://img.shields.io/badge/HA-2024.8%2B-blue.svg" alt="HA Min Version"></a>
-	<img src="https://img.shields.io/badge/Local-No%20Cloud-success" alt="Local Only">
+  <a href="https://github.com/MRDonnii/wavin-calefa/releases"><img src="https://img.shields.io/github/v/release/MRDonnii/wavin-calefa" alt="Latest release"></a>
+  <a href="https://github.com/hacs/integration"><img src="https://img.shields.io/badge/HACS-Custom-orange.svg" alt="HACS custom repository"></a>
+  <a href="https://www.home-assistant.io/"><img src="https://img.shields.io/badge/Home%20Assistant-2024.8%2B-41BDF5" alt="Home Assistant 2024.8 or newer"></a>
+  <img src="https://img.shields.io/badge/Cloud-Not%20required-success" alt="No cloud required">
 </p>
 
----
+## Features
 
-## What This Integration Is For
+- Fully local Modbus TCP communication with automatic port detection
+- 44 operational and diagnostic sensors
+- 21 fault and warning binary sensors
+- 23 verified writable controls with direct readback
+- Danish and English entity presentation
+- Separate Home Assistant devices for system, heating, room control, and domestic hot water
+- Local icon and logo assets for Home Assistant 2026.3 and newer
 
-The Wavin Calefa integration exposes your district heating unit in Home Assistant with a focus on everyday operations:
+## Writable controls in 0.3.0
 
-- Temperatures, pressure, valves, and flow in both DHW and heating circuits
-- Diagnostics and alarm states as binary sensors
-- Data for dashboards, automations, and notifications
-- Fully local polling with no cloud account required
+### Heating and heat curve
 
-In short: you get a clear view of whether your system is running normally, and when action is needed.
+- Standby and vacation mode
+- Vacation for central heating
+- Heat-curve type: manual, floor heating, or radiator
+- Manual slope
+- Parallel shift
+- Minimum and maximum supply temperature
+- Summer shutdown temperature
+- Return-limiter mode, maximum return temperature, gain, and priority
 
----
+### Room control
 
-## Highlights
+- Eco, comfort, and extra-comfort temperatures
+- Active comfort profile
+- Schedule on or off
+- Temporary temperature, duration, and mode
 
-- Automatic port detection (including 10223 and 502)
-- 42 sensors and 21 binary sensors
-- Danish, English, or Auto language mode (follows HA language)
-- HACS-ready installation
-- Designed for Calefa 2 and Sentio setups
+### Domestic hot water
 
----
+- Operating mode
+- Hot-water setpoint
+- Bypass temperature
+- Circulation temperature
+- Vacation for domestic hot water
 
-## Supported Hardware
+All writes are serialized and checked by reading the value back from the Calefa unit. Multi-register changes are rolled back if verification fails.
+
+> [!CAUTION]
+> Writable entities change the heating unit itself. Use values suitable for your installation. Available registers can vary by Calefa/Sentio model and firmware.
+
+## Installation with HACS
+
+1. Open HACS and select **Integrations**.
+2. Open the menu and select **Custom repositories**.
+3. Add `https://github.com/MRDonnii/wavin-calefa` as an **Integration**.
+4. Open **Wavin Calefa**, select **Download**, and restart Home Assistant.
+5. Go to **Settings > Devices & services > Add integration**, then search for **Wavin Calefa**.
+
+[![Open your Home Assistant instance and add this repository to HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=MRDonnii&repository=wavin-calefa&category=integration)
+
+## Manual installation
+
+Copy `custom_components/wavin_calefa` to the `custom_components` directory in your Home Assistant configuration, then restart Home Assistant.
+
+## Configuration
+
+| Setting | Description | Default |
+|---|---|---|
+| Name | Name shown in Home Assistant | Wavin Calefa |
+| Host | Local address of the Calefa/Sentio unit | Required |
+| Language | Auto, Danish, or English | Auto |
+| Port | `0` scans supported Modbus TCP ports automatically | 0 |
+| Unit ID | Modbus unit identifier | 1 |
+| Scan interval | Seconds between updates | 30 |
+
+The options can be changed later from the integration card.
+
+## Supported hardware
 
 | Device | Status |
 |---|---|
 | Wavin Calefa 2 with Sentio controller | Tested |
 | DHW-201 Calefa | Expected to work |
 
----
+Some entities can be unavailable when a sensor or feature is not installed on the unit. The integration converts the documented `0x7FFF` missing-value marker to unavailable instead of showing an incorrect measurement.
 
-## Installation
+## Troubleshooting
 
-### HACS (recommended)
+- Confirm that Home Assistant can reach the Calefa unit over the local network.
+- Leave the port at `0` to use automatic detection, or enter the known Modbus TCP port.
+- Confirm that the Unit ID is correct, normally `1`.
+- After installing or updating through HACS, restart Home Assistant.
+- If only individual entities are unavailable, the corresponding hardware feature may not be present.
 
-1. Open HACS and go to Integrations
-2. Open the three-dot menu and choose Custom repositories
-3. Add this repository URL as type Integration:
-	 https://github.com/MRDonnii/wavin-calefa
-4. Search for Wavin Calefa and install
-5. Restart Home Assistant
+## Release history
 
-### Manual installation
-
-1. Copy custom_components/wavin_calefa into your HA config under custom_components
-2. Restart Home Assistant
-
----
-
-## Configuration
-
-Add the integration via:
-
-Settings -> Devices & Services -> Add Integration -> Wavin Calefa
-
-| Field | Description | Default |
-|---|---|---|
-| Name | Friendly name in Home Assistant | Wavin Calefa |
-| IP address | Local IP of the Calefa/Sentio unit | None |
-| Sensor language | Auto, Danish, or English | Auto |
-| Port | Modbus TCP port, 0 means auto-scan | 0 |
-| Modbus unit ID | Usually 1 | 1 |
-| Scan interval | Polling interval in seconds | 30 |
-
-All settings can be changed later via Options on the integration card.
-
----
-
-## What You Get In Home Assistant
-
-### Operational sensors
-
-Examples of core sensors:
-
-- DHW status, bypass, mode, and regulator state
-- District heating supply, return, and cooling delta
-- Heating circuit state, desired supply, and return
-- System pressure and valve positions
-
-### Faults and warnings
-
-Binary sensors with device class problem show active fault state, for example:
-
-- Pressure and flow faults
-- Sensor faults on DHW, district heating, and heating circuits
-- Motor faults and frost protection states
-
----
-
-## Important Notes
-
-- Some sensors may be unavailable on units where physical probes are not installed
-- Sentio uses special value 0x7FFF for missing measurements; this integration converts it to unavailable instead of showing false temperatures
-- Energy and power estimates are informative only, not billing-grade metering
-
----
-
-## Quick Troubleshooting
-
-1. Verify IP address and Modbus TCP connectivity
-2. Use Port 0 to let the integration auto-detect the correct port
-3. Verify Unit ID (normally 1)
-4. If specific sensors are unavailable, they may be unsupported or physically not connected
-
----
-
-## Version 0.2.2
-
-- Added calculated radiator forward/return delta for the active CVV/ITC circuit
-- Sentio now hides unsupported HC/CH temperature sensors instead of leaving them as unknown or unavailable
-- Legacy unavailable sensor entities are cleaned up automatically on integration reload
-
----
-
-## Version 0.2.0
-
-This release includes a major mapping cleanup against the official register specification:
-
-- Corrected register mappings across DHW and CH/HC areas
-- More diagnostic and operational sensors
-- More binary sensors for faults and warnings
-- Improved INVALID_VALUE handling
-- Improved language support (DA, EN, Auto)
-
----
+See [CHANGELOG.md](CHANGELOG.md) for all release notes.
 
 ## Links
 
-- Documentation and source: https://github.com/MRDonnii/wavin-calefa
-- Releases: https://github.com/MRDonnii/wavin-calefa/releases
-- Issues: https://github.com/MRDonnii/wavin-calefa/issues
+- [Releases](https://github.com/MRDonnii/wavin-calefa/releases)
+- [Issues](https://github.com/MRDonnii/wavin-calefa/issues)
