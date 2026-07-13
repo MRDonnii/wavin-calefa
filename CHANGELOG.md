@@ -2,6 +2,14 @@
 
 All notable changes to Wavin Calefa are documented in this file.
 
+## [0.3.1] - 2026-07-13
+
+### Fixed
+
+- Restored the writable Eco, Comfort, and Extra comfort room-temperature entities that were missing from the 0.3.0 package
+- Localized selectable values for Danish installations, including room profiles, heat-curve types, return-limiter modes, and domestic-hot-water modes
+- Prevented blank room-temperature controls after updating through HACS
+
 ## [0.3.0] - 2026-07-13
 
 ### Added
@@ -40,6 +48,7 @@ All notable changes to Wavin Calefa are documented in this file.
 - Expanded diagnostics, operational sensors, and binary fault sensors
 - Improved missing-value handling and Danish/English language support
 
+[0.3.1]: https://github.com/MRDonnii/wavin-calefa/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/MRDonnii/wavin-calefa/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/MRDonnii/wavin-calefa/compare/v0.2.1...v0.2.2
 [0.2.0]: https://github.com/MRDonnii/wavin-calefa/releases/tag/v0.2.0
