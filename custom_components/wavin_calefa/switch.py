@@ -11,7 +11,8 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, HEAT_CALL_DATA
+from .auto_standby import WavinCalefaAutoStandbyManager
+from .const import AUTO_STANDBY_DATA, DOMAIN, HEAT_CALL_DATA, REGISTER_STANDBY
 from .coordinator import WavinCalefaCoordinator
 from .entity_helpers import (
     GROUP_DHW,
@@ -62,6 +63,13 @@ async def async_setup_entry(
     ).get(entry.entry_id)
     if heat_call is not None and heat_call.configured:
         entities.append(WavinCalefaHeatCallEnabledSwitch(heat_call, coordinator, entry))
+    auto_standby: WavinCalefaAutoStandbyManager | None = hass.data.get(
+        AUTO_STANDBY_DATA, {}
+    ).get(entry.entry_id)
+    if auto_standby is not None and auto_standby.configured:
+        entities.append(
+            WavinCalefaAutoStandbyEnabledSwitch(auto_standby, coordinator, entry)
+        )
     async_add_entities(entities)
 
 
@@ -91,11 +99,11 @@ class WavinCalefaStandbySwitch(
 
     async def async_turn_on(self, **kwargs: object) -> None:
         """Activate standby and block space heating."""
-        await self.coordinator.async_write_holding_register(26, 1)
+        await self.coordinator.async_write_holding_register(REGISTER_STANDBY, 1)
 
     async def async_turn_off(self, **kwargs: object) -> None:
         """Release standby and allow space heating."""
-        await self.coordinator.async_write_holding_register(26, 0)
+        await self.coordinator.async_write_holding_register(REGISTER_STANDBY, 0)
 
 
 class WavinCalefaVacationSwitch(
@@ -380,3 +388,58 @@ class WavinCalefaHeatCallEnabledSwitch(RestoreEntity, SwitchEntity):
         self._heat_call.runtime_enabled = False
         self.async_write_ha_state()
         await self._heat_call._async_evaluate()  # noqa: SLF001
+
+
+class WavinCalefaAutoStandbyEnabledSwitch(RestoreEntity, SwitchEntity):
+    """Pause or resume the optional automatic-standby feature at will.
+
+    Separate from the "Enable automatic standby" option in the integration's
+    options flow: that option controls whether the feature is set up at all.
+    This switch lets it be paused temporarily without going back into
+    settings, and its state survives restarts.
+    """
+
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:radiator-disabled"
+
+    def __init__(
+        self,
+        auto_standby: WavinCalefaAutoStandbyManager,
+        coordinator: WavinCalefaCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the switch."""
+        self._auto_standby = auto_standby
+        self._attr_unique_id = f"{entry.entry_id}_auto_standby_enabled"
+        _set_presentation(
+            self,
+            coordinator,
+            entry,
+            GROUP_HEATING,
+            "Automatisk standby",
+            "Automatic standby",
+        )
+
+    async def async_added_to_hass(self) -> None:
+        """Restore the last known runtime state."""
+        await super().async_added_to_hass()
+        last_state = await self.async_get_last_state()
+        if last_state is not None:
+            self._auto_standby.runtime_enabled = last_state.state == "on"
+
+    @property
+    def is_on(self) -> bool:
+        """Return whether the auto-standby feature may currently act."""
+        return self._auto_standby.runtime_enabled
+
+    async def async_turn_on(self, **kwargs: object) -> None:
+        """Resume the auto-standby feature."""
+        self._auto_standby.runtime_enabled = True
+        self.async_write_ha_state()
+        await self._auto_standby._async_evaluate()  # noqa: SLF001
+
+    async def async_turn_off(self, **kwargs: object) -> None:
+        """Pause the auto-standby feature and release any held standby."""
+        self._auto_standby.runtime_enabled = False
+        self.async_write_ha_state()
+        await self._auto_standby._async_evaluate()  # noqa: SLF001

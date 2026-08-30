@@ -73,3 +73,22 @@ HEAT_CALL_REGISTER_ROOM_TEMPORARY_EXPIRY_HIGH = 7510
 HEAT_CALL_REGISTER_ROOM_TEMPORARY_EXPIRY_LOW = 7511
 HEAT_CALL_REFRESH_MINUTES = 30
 HEAT_CALL_FAULT_GRACE_MINUTES = 20
+
+# Optional automatic-standby feature: shares heat_call's configured
+# thermostats/sensor-rooms/valve entities as its demand signal, and puts the
+# whole Calefa unit into standby once every one of them is warm enough for
+# long enough, releasing it again the moment real demand returns. Used by
+# both auto_standby.py and the existing standby switch in switch.py, so the
+# register is a shared constant rather than a literal in two places.
+REGISTER_STANDBY = 26
+
+AUTO_STANDBY_DATA = f"{DOMAIN}_auto_standby"
+CONF_AUTO_STANDBY_ENABLED = "auto_standby_enabled"
+CONF_AUTO_STANDBY_DELAY_MINUTES = "auto_standby_delay_minutes"
+DEFAULT_AUTO_STANDBY_DELAY_MINUTES = 15
+
+# Fixed (non-configurable) pump-stop confirmation behaviour after engaging
+# standby: retried this many times, this many seconds apart, before the
+# feature reports a fault instead of silently holding standby unconfirmed.
+AUTO_STANDBY_PUMPSTOP_RETRY_COUNT = 3
+AUTO_STANDBY_PUMPSTOP_RETRY_DELAY_SECONDS = 20

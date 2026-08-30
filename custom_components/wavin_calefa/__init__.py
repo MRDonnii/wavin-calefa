@@ -6,7 +6,8 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
-from .const import DOMAIN, HEAT_CALL_DATA, PLATFORMS
+from .auto_standby import WavinCalefaAutoStandbyManager
+from .const import AUTO_STANDBY_DATA, DOMAIN, HEAT_CALL_DATA, PLATFORMS
 from .coordinator import WavinCalefaCoordinator
 from .heat_call import WavinCalefaHeatCallManager
 
@@ -67,6 +68,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(HEAT_CALL_DATA, {})[entry.entry_id] = heat_call
     await heat_call.async_setup()
 
+    auto_standby = WavinCalefaAutoStandbyManager(hass, entry, coordinator, heat_call)
+    hass.data.setdefault(AUTO_STANDBY_DATA, {})[entry.entry_id] = auto_standby
+    await auto_standby.async_setup()
+
     # Reload once the options flow manager has actually applied new options
     # (see config_flow.py) rather than reloading from within the flow
     # itself, which would run before that apply happens and pick up the
@@ -92,4 +97,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         ).pop(entry.entry_id, None)
         if heat_call is not None:
             heat_call.async_unload()
+        auto_standby: WavinCalefaAutoStandbyManager | None = hass.data.get(
+            AUTO_STANDBY_DATA, {}
+        ).pop(entry.entry_id, None)
+        if auto_standby is not None:
+            auto_standby.async_unload()
     return unload_ok

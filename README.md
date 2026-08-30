@@ -98,6 +98,31 @@ This adds a few new entities under the Calefa device:
 > [!NOTE]
 > This reproduces the *effect* of a Sentio controller's demand signal by using the same writable settings a real one relies on - it does not emulate Sentio's own communication protocol. If you have (or add) a real Sentio room controller, prefer that; this feature is meant for installations that don't have one.
 
+## Optional: automatic standby
+
+A separate, independent feature from heat call: instead of raising summer-stop, it puts the **whole Calefa unit into standby** once every configured thermostat/sensor-room/valve is warm enough for long enough, and releases it again the moment real demand returns or the data becomes invalid. It shares heat call's configured demand sources (so nothing has to be set up twice) but works whether or not heat call itself is enabled - useful, for example, if a physical Sentio controller already handles summer-stop and RUM, but the unit should still power down between heating cycles.
+
+Before actually engaging standby, and again after, it confirms the unit's own pump call, pump status, and CVV valve position have genuinely settled - retrying a few times before reporting a fault rather than holding an unconfirmed standby indefinitely. If standby is ever released manually (or by something else), that's always respected; the feature only ever acts on standby it engaged itself.
+
+The two features are coordinated so they can't work against each other: heat call never starts a call while automatic standby has the unit blocked, and automatic standby never engages standby while a heat call is active.
+
+### Setting it up
+
+1. Go to **Settings > Devices & services > Wavin Calefa > Configure**.
+2. Configure at least one thermostat or sensor-only room under heat call above (automatic standby needs that as its demand signal, even with heat call itself left disabled).
+3. Enable automatic standby and adjust how long everything must stay warm before it engages, if the default doesn't suit your installation.
+
+This adds a few more entities under the Calefa device:
+
+| Entity | Purpose |
+|---|---|
+| Automatic standby (switch) | Pause or resume the feature at any time, independent of the setup above |
+| Automatic standby status (sensor) | Human-readable current state |
+| Automatic standby active (binary sensor) | On while standby is being held by the automation |
+| Automatic standby fault (binary sensor) | On if the pump stop couldn't be confirmed after standby was engaged |
+| Automatic standby data valid (binary sensor, diagnostic) | On while the configured demand sources report usable data |
+| All rooms warm enough (binary sensor, diagnostic) | On while every configured room is warm enough to allow standby |
+
 ## Installation with HACS
 
 1. Open HACS and select **Integrations**.

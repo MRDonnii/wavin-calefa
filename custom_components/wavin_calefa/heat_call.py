@@ -76,6 +76,7 @@ class WavinCalefaHeatCallManager:
         self._listeners: list[Callable[[], None]] = []
         self._unsub_state: Callable[[], None] | None = None
         self._unsub_timer: Callable[[], None] | None = None
+        self._unsub_coordinator: Callable[[], None] | None = None
         self._call_active = False
         self._call_started_at: float | None = None
         self._baseline_summer_stop: float | None = None
@@ -111,7 +112,8 @@ class WavinCalefaHeatCallManager:
         """Return actuator entities (e.g. an after-heater valve) that signal demand by opening."""
         return list(self.options.get(CONF_HEAT_CALL_VALVE_ENTITIES, []))
 
-    def _sensor_rooms(self) -> list[tuple[str, float]]:
+    @property
+    def sensor_rooms(self) -> list[tuple[str, float]]:
         """Parse 'entity_id:target_temperature' lines for thermostat-less rooms."""
         raw = self.options.get(CONF_HEAT_CALL_SENSOR_ROOMS, "")
         rooms: list[tuple[str, float]] = []
@@ -126,6 +128,16 @@ class WavinCalefaHeatCallManager:
                 continue
             rooms.append((entity_id.strip(), target))
         return rooms
+
+    @property
+    def has_demand_sources(self) -> bool:
+        """Return whether any thermostat or sensor-only room is configured.
+
+        Used by the auto-standby feature to decide whether it has a demand
+        signal to work from at all - it shares this manager's entity lists
+        rather than collecting its own.
+        """
+        return bool(self.climate_entities or self.sensor_rooms)
 
     def _valve_threshold(self) -> float:
         return float(
@@ -149,7 +161,14 @@ class WavinCalefaHeatCallManager:
             self.options.get(CONF_HEAT_CALL_HYSTERESIS, DEFAULT_HEAT_CALL_HYSTERESIS)
         )
 
-    def _restart_delay_minutes(self) -> float:
+    def restart_delay_minutes(self) -> float:
+        """Return how long demand must hold before acting on it.
+
+        Public: shared by the auto-standby feature as the delay before it
+        releases standby once real demand returns, mirroring how both
+        behaviours were driven by the same setting in the original
+        automation this integration replaces.
+        """
         return float(
             self.options.get(
                 CONF_HEAT_CALL_RESTART_DELAY_MINUTES,
@@ -205,7 +224,7 @@ class WavinCalefaHeatCallManager:
         watched = [
             *self.climate_entities,
             *self.ac_entities,
-            *[entity_id for entity_id, _ in self._sensor_rooms()],
+            *[entity_id for entity_id, _ in self.sensor_rooms],
             *self.valve_entities,
         ]
         if watched:
@@ -214,6 +233,13 @@ class WavinCalefaHeatCallManager:
             )
         self._unsub_timer = async_track_time_interval(
             self.hass, self._handle_timer, timedelta(minutes=HEAT_CALL_REFRESH_MINUTES)
+        )
+        # Also react to coordinator polls (every scan_interval), not just the
+        # 30-minute refresh timer above: this is what lets a call notice
+        # promptly when the auto-standby feature releases the standby
+        # register, instead of waiting up to 30 minutes to retry.
+        self._unsub_coordinator = self.coordinator.async_add_listener(
+            self._handle_coordinator_update
         )
         await self._async_evaluate()
 
@@ -225,6 +251,9 @@ class WavinCalefaHeatCallManager:
         if self._unsub_timer is not None:
             self._unsub_timer()
             self._unsub_timer = None
+        if self._unsub_coordinator is not None:
+            self._unsub_coordinator()
+            self._unsub_coordinator = None
 
     @callback
     def _handle_state_event(self, event: Event) -> None:
@@ -232,6 +261,10 @@ class WavinCalefaHeatCallManager:
 
     async def _handle_timer(self, now: Any) -> None:
         await self._async_evaluate()
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        self.hass.async_create_task(self._async_evaluate())
 
     def _cooling_active(self) -> bool:
         """Return true if any configured AC entity is actively cooling."""
@@ -241,10 +274,10 @@ class WavinCalefaHeatCallManager:
                 return True
         return False
 
-    def _evaluate_demand(self) -> tuple[bool, bool]:
+    def evaluate_demand(self) -> tuple[bool, bool]:
         """Return (data_valid, demand) across thermostats, sensor rooms, and valves."""
         climate_entities = self.climate_entities
-        sensor_rooms = self._sensor_rooms()
+        sensor_rooms = self.sensor_rooms
         if not climate_entities and not sensor_rooms:
             return False, False
         hysteresis = self._hysteresis()
@@ -304,6 +337,69 @@ class WavinCalefaHeatCallManager:
 
         return valid, demand
 
+    def evaluate_all_warm(self) -> tuple[bool, bool]:
+        """Return (data_valid, all_warm): true once every configured source is warm enough.
+
+        The mirror-image, zero-margin counterpart to evaluate_demand(), used
+        by the auto-standby feature to decide when it's safe to consider
+        putting the whole unit into standby. Kept as a separate method
+        (rather than a parametrized version of evaluate_demand()) since the
+        per-source comparisons are inverted, not just margin-shifted.
+        """
+        climate_entities = self.climate_entities
+        sensor_rooms = self.sensor_rooms
+        if not climate_entities and not sensor_rooms:
+            return False, False
+        cooling = self._cooling_active()
+        valid = True
+        warm = True
+
+        for entity_id in climate_entities:
+            state = self.hass.states.get(entity_id)
+            if state is None or state.state in ("unknown", "unavailable"):
+                valid = False
+                continue
+            current = state.attributes.get("current_temperature")
+            target = state.attributes.get("temperature")
+            if not isinstance(current, (int, float)) or not isinstance(
+                target, (int, float)
+            ):
+                valid = False
+                continue
+            if cooling and state.state == "off":
+                continue
+            if current < target or state.attributes.get("hvac_action") == "heating":
+                warm = False
+
+        for entity_id, target in sensor_rooms:
+            state = self.hass.states.get(entity_id)
+            if state is None or state.state in ("unknown", "unavailable"):
+                valid = False
+                continue
+            try:
+                current = float(state.state)
+            except ValueError:
+                valid = False
+                continue
+            if current < target:
+                warm = False
+
+        # Same best-effort treatment as evaluate_demand(): an unavailable
+        # valve sensor never invalidates data for everything else.
+        threshold = self._valve_threshold()
+        for entity_id in self.valve_entities:
+            state = self.hass.states.get(entity_id)
+            if state is None:
+                continue
+            try:
+                opening = float(state.state)
+            except ValueError:
+                continue
+            if opening > threshold:
+                warm = False
+
+        return valid, warm
+
     def _summer_stop_currently_blocking(self) -> bool:
         outdoor = self.coordinator.data.get("outdoor_temperature")
         normal = self.options.get(
@@ -322,7 +418,7 @@ class WavinCalefaHeatCallManager:
             self._set_public_state(False, False, False, False)
             return
 
-        data_valid, demand = self._evaluate_demand()
+        data_valid, demand = self.evaluate_demand()
         summer_stop_blocking = self._summer_stop_currently_blocking()
 
         if not data_valid:
@@ -347,7 +443,15 @@ class WavinCalefaHeatCallManager:
         if not self._call_active:
             if self._demand_since is None:
                 self._demand_since = time.time()
-            if time.time() - self._demand_since < self._restart_delay_minutes() * 60:
+            if time.time() - self._demand_since < self.restart_delay_minutes() * 60:
+                self._set_public_state(True, False, summer_stop_blocking, False)
+                return
+            if self.coordinator.data.get("standby") == 1:
+                # The whole unit is in standby - most likely the
+                # auto-standby feature holding it there. Starting a call
+                # now would be pointless; keep waiting and re-check on the
+                # next state change or coordinator poll, without resetting
+                # the demand timer (the demand itself hasn't gone away).
                 self._set_public_state(True, False, summer_stop_blocking, False)
                 return
             await self._async_start()

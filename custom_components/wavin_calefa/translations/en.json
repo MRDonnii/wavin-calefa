@@ -25,7 +25,7 @@
     "step": {
       "init": {
         "title": "Wavin Calefa options",
-        "description": "Heat call lets a set of existing thermostats stand in for a physical Sentio room controller. When they show real, sustained heat demand, the integration temporarily raises Calefa's own summer-stop threshold - only when it's actually blocking heat right now - and engages the RUM temporary-room override, the same two things a real Sentio controller's demand would otherwise release. Everything reverts automatically once demand clears, data becomes invalid, or this is turned back off. Calefa's own regulation, safety limits and blocking logic are never bypassed. Leave heat call disabled if you have a physical Sentio controller.",
+        "description": "Heat call lets a set of existing thermostats stand in for a physical Sentio room controller. When they show real, sustained heat demand, the integration temporarily raises Calefa's own summer-stop threshold - only when it's actually blocking heat right now - and engages the RUM temporary-room override, the same two things a real Sentio controller's demand would otherwise release. Everything reverts automatically once demand clears, data becomes invalid, or this is turned back off. Calefa's own regulation, safety limits and blocking logic are never bypassed. Leave heat call disabled if you have a physical Sentio controller.\n\nAutomatic standby shares the thermostats/rooms/valves configured above as its own demand signal and puts the whole unit into standby once every one of them is warm enough for long enough, releasing it again the moment real demand returns. It works independently of whether heat call itself is enabled, but needs at least one thermostat or sensor-room configured above.",
         "data": {
           "name": "Name",
           "host": "IP address",
@@ -44,9 +44,14 @@
           "heat_call_summer_stop_normal": "Normal summer-stop threshold (°C)",
           "heat_call_summer_stop_override": "Summer-stop override while calling for heat (°C)",
           "heat_call_room_target_temperature": "RUM override target temperature (°C)",
-          "heat_call_max_duration_minutes": "Safety limit: force-restart after this long (minutes)"
+          "heat_call_max_duration_minutes": "Safety limit: force-restart after this long (minutes)",
+          "auto_standby_enabled": "Enable automatic standby",
+          "auto_standby_delay_minutes": "How long everything must stay warm enough before standby engages (minutes)"
         }
       }
+    },
+    "error": {
+      "auto_standby_needs_demand_sources": "Automatic standby needs at least one thermostat or sensor-room configured above."
     }
   },
   "entity": {

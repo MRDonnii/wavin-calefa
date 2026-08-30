@@ -16,7 +16,9 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from .auto_standby import WavinCalefaAutoStandbyManager
 from .const import (
+    AUTO_STANDBY_DATA,
     CONF_LANGUAGE,
     DEFAULT_LANGUAGE,
     DOMAIN,
@@ -254,6 +256,20 @@ async def async_setup_entry(
                 ),
             ]
         )
+    auto_standby: WavinCalefaAutoStandbyManager | None = hass.data.get(
+        AUTO_STANDBY_DATA, {}
+    ).get(entry.entry_id)
+    if auto_standby is not None and auto_standby.configured:
+        entities.extend(
+            [
+                WavinCalefaAutoStandbyActiveSensor(auto_standby, coordinator, entry),
+                WavinCalefaAutoStandbyFaultSensor(auto_standby, coordinator, entry),
+                WavinCalefaAutoStandbyDataValidSensor(auto_standby, coordinator, entry),
+                WavinCalefaAutoStandbyAllRoomsWarmSensor(
+                    auto_standby, coordinator, entry
+                ),
+            ]
+        )
     async_add_entities(entities)
 
 
@@ -426,3 +442,147 @@ class WavinCalefaHeatCallSummerStopBlockingSensor(_WavinCalefaHeatCallBinarySens
     def is_on(self) -> bool:
         """Return true if summer-stop is currently blocking heat."""
         return self._heat_call.summer_stop_blocking
+
+
+class _WavinCalefaAutoStandbyBinarySensor(BinarySensorEntity):
+    """Base for binary sensors driven by the auto-standby manager, not Modbus polling."""
+
+    _attr_has_entity_name = True
+
+    def __init__(
+        self,
+        auto_standby: WavinCalefaAutoStandbyManager,
+        coordinator: WavinCalefaCoordinator,
+        entry: ConfigEntry,
+        key: str,
+        danish: str,
+        english: str,
+    ) -> None:
+        """Initialize the sensor."""
+        self._auto_standby = auto_standby
+        self._attr_unique_id = f"{entry.entry_id}_{key}"
+        selected_language = _selected_language(coordinator.hass, entry)
+        self._attr_name = danish if selected_language == LANGUAGE_DA else english
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry.entry_id)},
+            name=entry.title,
+            manufacturer="Wavin",
+            model=_device_model(coordinator),
+        )
+
+    async def async_added_to_hass(self) -> None:
+        """Subscribe to auto-standby manager updates."""
+        self.async_on_remove(
+            self._auto_standby.async_add_listener(self.async_write_ha_state)
+        )
+
+
+class WavinCalefaAutoStandbyActiveSensor(_WavinCalefaAutoStandbyBinarySensor):
+    """Whether standby is currently being held by the automation."""
+
+    _attr_icon = "mdi:power-sleep"
+
+    def __init__(
+        self,
+        auto_standby: WavinCalefaAutoStandbyManager,
+        coordinator: WavinCalefaCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(
+            auto_standby,
+            coordinator,
+            entry,
+            "auto_standby_active",
+            "Automatisk standby aktiv",
+            "Automatic standby active",
+        )
+
+    @property
+    def is_on(self) -> bool:
+        """Return true while standby is held by the automation."""
+        return self._auto_standby.standby_engaged
+
+
+class WavinCalefaAutoStandbyFaultSensor(_WavinCalefaAutoStandbyBinarySensor):
+    """Whether standby was engaged but the pump stop couldn't be confirmed."""
+
+    _attr_device_class = BinarySensorDeviceClass.PROBLEM
+    _attr_icon = "mdi:pump-alert"
+
+    def __init__(
+        self,
+        auto_standby: WavinCalefaAutoStandbyManager,
+        coordinator: WavinCalefaCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(
+            auto_standby,
+            coordinator,
+            entry,
+            "auto_standby_fault",
+            "Automatisk standby fejl",
+            "Automatic standby fault",
+        )
+
+    @property
+    def is_on(self) -> bool:
+        """Return true if the pump stop couldn't be confirmed after standby was engaged."""
+        return self._auto_standby.fault
+
+
+class WavinCalefaAutoStandbyDataValidSensor(_WavinCalefaAutoStandbyBinarySensor):
+    """Whether the shared demand sources currently report usable data."""
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:check-network-outline"
+
+    def __init__(
+        self,
+        auto_standby: WavinCalefaAutoStandbyManager,
+        coordinator: WavinCalefaCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(
+            auto_standby,
+            coordinator,
+            entry,
+            "auto_standby_data_valid",
+            "Automatisk standby data gyldig",
+            "Automatic standby data valid",
+        )
+
+    @property
+    def is_on(self) -> bool:
+        """Return true if the configured demand sources report usable data."""
+        return self._auto_standby.data_valid
+
+
+class WavinCalefaAutoStandbyAllRoomsWarmSensor(_WavinCalefaAutoStandbyBinarySensor):
+    """Whether every configured room is currently warm enough."""
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:home-thermometer-outline"
+
+    def __init__(
+        self,
+        auto_standby: WavinCalefaAutoStandbyManager,
+        coordinator: WavinCalefaCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(
+            auto_standby,
+            coordinator,
+            entry,
+            "auto_standby_all_rooms_warm",
+            "Alle rum varme nok",
+            "All rooms warm enough",
+        )
+
+    @property
+    def is_on(self) -> bool:
+        """Return true if every configured room is warm enough."""
+        return self._auto_standby.all_warm
