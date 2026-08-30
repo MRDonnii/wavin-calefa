@@ -58,6 +58,38 @@ All writes are serialized and checked by reading the value back from the Calefa 
 > [!CAUTION]
 > Writable entities change the heating unit itself. Use values suitable for your installation. Available registers can vary by Calefa/Sentio model and firmware.
 
+## Optional: heat call (Sentio emulation)
+
+Some Calefa installations have no physical Sentio room controller attached. Without one, the unit never receives a genuine room heat-call signal, so space heating stays gated by the unit's own summer-stop threshold with nothing to release it.
+
+Since 0.4.0, the integration can use a set of your existing Home Assistant thermostats (`climate` entities) as a stand-in for that missing controller. When they show real, sustained heat demand, it:
+
+1. Temporarily raises Calefa's own summer-stop threshold - but **only** when the threshold is actually the thing blocking heat right now (compared against the live outdoor temperature); otherwise it's left alone entirely.
+2. Engages the unit's RUM temporary-room override with a configurable target temperature.
+
+Both are the same two settings a real Sentio controller's demand would otherwise release - nothing about Calefa's own regulation, safety limits, or blocking logic is bypassed or written around. Everything reverts automatically the moment demand clears, the thermostats' data becomes invalid or unavailable, or the feature is turned off, and a hard safety limit force-restarts the call if it's ever held longer than expected.
+
+### Setting it up
+
+1. Go to **Settings > Devices & services > Wavin Calefa > Configure**.
+2. Choose **Heat call (optional Sentio emulation)**.
+3. Enable it, pick the thermostats to monitor, and optionally pick AC/cooling entities that should suppress demand while actively cooling.
+4. Adjust the hysteresis, debounce, summer-stop values, RUM target, and the safety time limit if the defaults don't suit your installation.
+
+This adds a few new entities under the Calefa device:
+
+| Entity | Purpose |
+|---|---|
+| Heat call (switch) | Pause or resume the feature at any time, independent of the setup above |
+| Heat call status (sensor) | Human-readable current state |
+| Heat call in progress (binary sensor) | On while an override is being held active |
+| Heat call fault (binary sensor) | On if Calefa hasn't responded to an active call for 20 minutes |
+| Heat call data valid (binary sensor, diagnostic) | On while the configured thermostats report usable data |
+| Summer stop blocking (binary sensor, diagnostic) | On when summer-stop is what's currently blocking heat |
+
+> [!NOTE]
+> This reproduces the *effect* of a Sentio controller's demand signal by using the same writable settings a real one relies on - it does not emulate Sentio's own communication protocol. If you have (or add) a real Sentio room controller, prefer that; this feature is meant for installations that don't have one.
+
 ## Installation with HACS
 
 1. Open HACS and select **Integrations**.

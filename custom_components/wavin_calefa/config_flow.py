@@ -8,13 +8,29 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_NAME
 from homeassistant.core import callback
+from homeassistant.helpers import selector
 
 from .const import (
+    CONF_HEAT_CALL_AC_ENTITIES,
+    CONF_HEAT_CALL_CLIMATE_ENTITIES,
+    CONF_HEAT_CALL_ENABLED,
+    CONF_HEAT_CALL_HYSTERESIS,
+    CONF_HEAT_CALL_MAX_DURATION_MINUTES,
+    CONF_HEAT_CALL_RESTART_DELAY_MINUTES,
+    CONF_HEAT_CALL_ROOM_TARGET_TEMPERATURE,
+    CONF_HEAT_CALL_SUMMER_STOP_NORMAL,
+    CONF_HEAT_CALL_SUMMER_STOP_OVERRIDE,
     CONF_HOST,
     CONF_LANGUAGE,
     CONF_PORT,
     CONF_SCAN_INTERVAL,
     CONF_UNIT_ID,
+    DEFAULT_HEAT_CALL_HYSTERESIS,
+    DEFAULT_HEAT_CALL_MAX_DURATION_MINUTES,
+    DEFAULT_HEAT_CALL_RESTART_DELAY_MINUTES,
+    DEFAULT_HEAT_CALL_ROOM_TARGET_TEMPERATURE,
+    DEFAULT_HEAT_CALL_SUMMER_STOP_NORMAL,
+    DEFAULT_HEAT_CALL_SUMMER_STOP_OVERRIDE,
     DEFAULT_LANGUAGE,
     DEFAULT_NAME,
     DEFAULT_PORT,
@@ -59,6 +75,96 @@ def _schema(
             vol.Optional(CONF_PORT, default=defaults.get(CONF_PORT, DEFAULT_PORT))
         ] = vol.All(vol.Coerce(int), vol.Range(min=0, max=65535))
     return vol.Schema(fields)
+
+
+def _heat_call_schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
+    """Build the schema for the optional Sentio-style heat-call setup."""
+    defaults = defaults or {}
+    return vol.Schema(
+        {
+            vol.Required(
+                CONF_HEAT_CALL_ENABLED,
+                default=defaults.get(CONF_HEAT_CALL_ENABLED, False),
+            ): selector.BooleanSelector(),
+            vol.Optional(
+                CONF_HEAT_CALL_CLIMATE_ENTITIES,
+                default=defaults.get(CONF_HEAT_CALL_CLIMATE_ENTITIES, []),
+            ): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="climate", multiple=True)
+            ),
+            vol.Optional(
+                CONF_HEAT_CALL_AC_ENTITIES,
+                default=defaults.get(CONF_HEAT_CALL_AC_ENTITIES, []),
+            ): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="climate", multiple=True)
+            ),
+            vol.Optional(
+                CONF_HEAT_CALL_HYSTERESIS,
+                default=defaults.get(
+                    CONF_HEAT_CALL_HYSTERESIS, DEFAULT_HEAT_CALL_HYSTERESIS
+                ),
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=0.1, max=5, step=0.1, mode=selector.NumberSelectorMode.BOX
+                )
+            ),
+            vol.Optional(
+                CONF_HEAT_CALL_RESTART_DELAY_MINUTES,
+                default=defaults.get(
+                    CONF_HEAT_CALL_RESTART_DELAY_MINUTES,
+                    DEFAULT_HEAT_CALL_RESTART_DELAY_MINUTES,
+                ),
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=0, max=30, step=1, mode=selector.NumberSelectorMode.BOX
+                )
+            ),
+            vol.Optional(
+                CONF_HEAT_CALL_SUMMER_STOP_NORMAL,
+                default=defaults.get(
+                    CONF_HEAT_CALL_SUMMER_STOP_NORMAL,
+                    DEFAULT_HEAT_CALL_SUMMER_STOP_NORMAL,
+                ),
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=10, max=25, step=0.5, mode=selector.NumberSelectorMode.BOX
+                )
+            ),
+            vol.Optional(
+                CONF_HEAT_CALL_SUMMER_STOP_OVERRIDE,
+                default=defaults.get(
+                    CONF_HEAT_CALL_SUMMER_STOP_OVERRIDE,
+                    DEFAULT_HEAT_CALL_SUMMER_STOP_OVERRIDE,
+                ),
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=10, max=25, step=0.5, mode=selector.NumberSelectorMode.BOX
+                )
+            ),
+            vol.Optional(
+                CONF_HEAT_CALL_ROOM_TARGET_TEMPERATURE,
+                default=defaults.get(
+                    CONF_HEAT_CALL_ROOM_TARGET_TEMPERATURE,
+                    DEFAULT_HEAT_CALL_ROOM_TARGET_TEMPERATURE,
+                ),
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=5, max=30, step=0.5, mode=selector.NumberSelectorMode.BOX
+                )
+            ),
+            vol.Optional(
+                CONF_HEAT_CALL_MAX_DURATION_MINUTES,
+                default=defaults.get(
+                    CONF_HEAT_CALL_MAX_DURATION_MINUTES,
+                    DEFAULT_HEAT_CALL_MAX_DURATION_MINUTES,
+                ),
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=15, max=720, step=15, mode=selector.NumberSelectorMode.BOX
+                )
+            ),
+        }
+    )
 
 
 def _candidate_ports(requested_port: int) -> tuple[int, ...]:
@@ -155,7 +261,16 @@ class WavinCalefaOptionsFlow(config_entries.OptionsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
-        """Manage options."""
+        """Offer a choice between connection settings and heat-call setup."""
+        return self.async_show_menu(
+            step_id="init",
+            menu_options=["connection", "heat_call"],
+        )
+
+    async def async_step_connection(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Manage connection options."""
         if user_input is not None:
             data = {**self._config_entry.data, **user_input}
             self.hass.config_entries.async_update_entry(
@@ -168,6 +283,33 @@ class WavinCalefaOptionsFlow(config_entries.OptionsFlow):
 
         defaults = {**self._config_entry.data, **self._config_entry.options}
         return self.async_show_form(
-            step_id="init",
+            step_id="connection",
             data_schema=_schema(defaults, include_port=True),
+        )
+
+    async def async_step_heat_call(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Manage the optional Sentio-style heat-call setup.
+
+        Lets a set of existing HA thermostats (climate entities) stand in
+        for a physical Sentio room controller: when they show real heat
+        demand, the integration temporarily raises Calefa's own summer-stop
+        (only if it's actually blocking heat right now) and engages the
+        unit's RUM temporary-room override - the same two things a real
+        Sentio controller's demand would otherwise release. Everything is
+        reverted automatically once demand clears, data becomes invalid, or
+        this is turned back off.
+        """
+        if user_input is not None:
+            options = {**self._config_entry.options, **user_input}
+            self.hass.config_entries.async_update_entry(
+                self._config_entry, options=options
+            )
+            await self.hass.config_entries.async_reload(self._config_entry.entry_id)
+            return self.async_create_entry(title="", data={})
+
+        return self.async_show_form(
+            step_id="heat_call",
+            data_schema=_heat_call_schema(self._config_entry.options),
         )

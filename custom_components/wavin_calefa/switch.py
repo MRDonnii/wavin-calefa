@@ -8,9 +8,10 @@ from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
+from .const import DOMAIN, HEAT_CALL_DATA
 from .coordinator import WavinCalefaCoordinator
 from .entity_helpers import (
     GROUP_DHW,
@@ -20,6 +21,7 @@ from .entity_helpers import (
     control_device_info,
     localized_name,
 )
+from .heat_call import WavinCalefaHeatCallManager
 
 
 def _set_presentation(
@@ -46,17 +48,21 @@ async def async_setup_entry(
 ) -> None:
     """Set up verified Calefa switches."""
     coordinator: WavinCalefaCoordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities(
-        [
-            WavinCalefaStandbySwitch(coordinator, entry),
-            WavinCalefaVacationSwitch(coordinator, entry),
-            WavinCalefaVacationForDhwSwitch(coordinator, entry),
-            WavinCalefaVacationForChSwitch(coordinator, entry),
-            WavinCalefaRoomScheduleSwitch(coordinator, entry),
-            WavinCalefaRoomTemporaryModeSwitch(coordinator, entry),
-            WavinCalefaReturnLimiterPrioritySwitch(coordinator, entry),
-        ]
-    )
+    entities: list[SwitchEntity] = [
+        WavinCalefaStandbySwitch(coordinator, entry),
+        WavinCalefaVacationSwitch(coordinator, entry),
+        WavinCalefaVacationForDhwSwitch(coordinator, entry),
+        WavinCalefaVacationForChSwitch(coordinator, entry),
+        WavinCalefaRoomScheduleSwitch(coordinator, entry),
+        WavinCalefaRoomTemporaryModeSwitch(coordinator, entry),
+        WavinCalefaReturnLimiterPrioritySwitch(coordinator, entry),
+    ]
+    heat_call: WavinCalefaHeatCallManager | None = hass.data.get(
+        HEAT_CALL_DATA, {}
+    ).get(entry.entry_id)
+    if heat_call is not None and heat_call.configured:
+        entities.append(WavinCalefaHeatCallEnabledSwitch(heat_call, coordinator, entry))
+    async_add_entities(entities)
 
 
 class WavinCalefaStandbySwitch(
@@ -324,3 +330,53 @@ class WavinCalefaReturnLimiterPrioritySwitch(
     async def async_turn_off(self, **kwargs: object) -> None:
         """Remove return limiting priority over supply control."""
         await self.coordinator.async_write_holding_register(7718, 0)
+
+
+class WavinCalefaHeatCallEnabledSwitch(RestoreEntity, SwitchEntity):
+    """Pause or resume the optional Sentio-style heat-call feature at will.
+
+    Separate from the "Enable heat call" option in the integration's
+    options flow: that option controls whether the feature is set up at
+    all (which entities exist). This switch lets it be paused temporarily
+    without going back into settings, and its state survives restarts.
+    """
+
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:radiator"
+
+    def __init__(
+        self,
+        heat_call: WavinCalefaHeatCallManager,
+        coordinator: WavinCalefaCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the switch."""
+        self._heat_call = heat_call
+        self._attr_unique_id = f"{entry.entry_id}_heat_call_enabled"
+        _set_presentation(
+            self, coordinator, entry, GROUP_HEATING, "Varmekald", "Heat call"
+        )
+
+    async def async_added_to_hass(self) -> None:
+        """Restore the last known runtime state."""
+        await super().async_added_to_hass()
+        last_state = await self.async_get_last_state()
+        if last_state is not None:
+            self._heat_call.runtime_enabled = last_state.state == "on"
+
+    @property
+    def is_on(self) -> bool:
+        """Return whether the heat-call feature may currently act."""
+        return self._heat_call.runtime_enabled
+
+    async def async_turn_on(self, **kwargs: object) -> None:
+        """Resume the heat-call feature."""
+        self._heat_call.runtime_enabled = True
+        self.async_write_ha_state()
+        await self._heat_call._async_evaluate()  # noqa: SLF001
+
+    async def async_turn_off(self, **kwargs: object) -> None:
+        """Pause the heat-call feature and release any held override."""
+        self._heat_call.runtime_enabled = False
+        self.async_write_ha_state()
+        await self._heat_call._async_evaluate()  # noqa: SLF001

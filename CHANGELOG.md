@@ -2,6 +2,19 @@
 
 All notable changes to Wavin Calefa are documented in this file.
 
+## [0.4.0] - 2026-08-30
+
+### Added
+
+- Optional heat-call (Sentio emulation) feature: use existing HA thermostats to signal room heat demand on installations with no physical Sentio room controller
+- New options-flow step to select thermostats, optional AC/cooling entities, hysteresis, debounce, summer-stop values, RUM target temperature, and a safety time limit
+- New entities: heat call enable switch, status sensor, in-progress/fault/data-valid binary sensors, and a summer-stop-blocking diagnostic binary sensor
+- The feature only ever raises summer-stop when it's actually blocking heat right now (compared against live outdoor temperature), and always reverts on lost demand, invalid data, or being turned off
+
+### Changed
+
+- Writable-control entities now reflect a verified write immediately instead of waiting for the next full register scan; a complete refresh still runs in the background to reconcile everything else
+
 ## [0.3.1] - 2026-07-13
 
 ### Fixed
