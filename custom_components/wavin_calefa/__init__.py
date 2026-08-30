@@ -67,8 +67,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(HEAT_CALL_DATA, {})[entry.entry_id] = heat_call
     await heat_call.async_setup()
 
+    # Reload once the options flow manager has actually applied new options
+    # (see config_flow.py) rather than reloading from within the flow
+    # itself, which would run before that apply happens and pick up the
+    # old options.
+    entry.async_on_unload(entry.add_update_listener(_async_update_listener))
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
+
+
+async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Reload the entry after its options have changed."""
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

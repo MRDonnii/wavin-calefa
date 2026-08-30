@@ -251,8 +251,27 @@ class WavinCalefaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return WavinCalefaOptionsFlow(config_entry)
 
 
+_HEAT_CALL_OPTION_KEYS = (
+    CONF_HEAT_CALL_ENABLED,
+    CONF_HEAT_CALL_CLIMATE_ENTITIES,
+    CONF_HEAT_CALL_AC_ENTITIES,
+    CONF_HEAT_CALL_HYSTERESIS,
+    CONF_HEAT_CALL_RESTART_DELAY_MINUTES,
+    CONF_HEAT_CALL_SUMMER_STOP_NORMAL,
+    CONF_HEAT_CALL_SUMMER_STOP_OVERRIDE,
+    CONF_HEAT_CALL_ROOM_TARGET_TEMPERATURE,
+    CONF_HEAT_CALL_MAX_DURATION_MINUTES,
+)
+
+
 class WavinCalefaOptionsFlow(config_entries.OptionsFlow):
-    """Options flow for Wavin Calefa."""
+    """Options flow for Wavin Calefa.
+
+    A single combined form rather than a menu with separate steps: some
+    automation/scripting clients only reliably drive a plain single-step
+    options flow, and a menu here bought polish at the cost of that
+    reliability. One longer form is a fine trade for that.
+    """
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Initialize options flow."""
@@ -261,55 +280,47 @@ class WavinCalefaOptionsFlow(config_entries.OptionsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
-        """Offer a choice between connection settings and heat-call setup."""
-        return self.async_show_menu(
-            step_id="init",
-            menu_options=["connection", "heat_call"],
-        )
+        """Manage connection settings and the optional Sentio-style heat-call setup.
 
-    async def async_step_connection(
-        self, user_input: dict[str, Any] | None = None
-    ) -> config_entries.ConfigFlowResult:
-        """Manage connection options."""
+        Heat call lets a set of existing HA thermostats (climate entities)
+        stand in for a physical Sentio room controller: when they show real
+        heat demand, the integration temporarily raises Calefa's own
+        summer-stop (only if it's actually blocking heat right now) and
+        engages the unit's RUM temporary-room override - the same two
+        things a real Sentio controller's demand would otherwise release.
+        Everything is reverted automatically once demand clears, data
+        becomes invalid, or this is turned back off.
+        """
         if user_input is not None:
-            data = {**self._config_entry.data, **user_input}
+            data = {**self._config_entry.data}
+            options = {**self._config_entry.options}
+            for key, value in user_input.items():
+                if key in _HEAT_CALL_OPTION_KEYS:
+                    options[key] = value
+                else:
+                    data[key] = value
+            # entry.data (connection settings) has to be applied by hand, but
+            # entry.options must NOT also be set here: the options flow
+            # manager applies whatever async_create_entry(data=...) returns
+            # as the new options right after this step returns. Setting both
+            # would have that automatic apply immediately clobber this call
+            # with a stale value. The actual reload happens via the
+            # update-listener registered in __init__.py, triggered once the
+            # manager has applied these options - not here, which would run
+            # too early and reload with the old options still in effect.
             self.hass.config_entries.async_update_entry(
                 self._config_entry,
                 title=data[CONF_NAME],
                 data=data,
             )
-            await self.hass.config_entries.async_reload(self._config_entry.entry_id)
-            return self.async_create_entry(title="", data={})
+            return self.async_create_entry(title="", data=options)
 
         defaults = {**self._config_entry.data, **self._config_entry.options}
+        schema_dict = {
+            **_schema(defaults, include_port=True).schema,
+            **_heat_call_schema(defaults).schema,
+        }
         return self.async_show_form(
-            step_id="connection",
-            data_schema=_schema(defaults, include_port=True),
-        )
-
-    async def async_step_heat_call(
-        self, user_input: dict[str, Any] | None = None
-    ) -> config_entries.ConfigFlowResult:
-        """Manage the optional Sentio-style heat-call setup.
-
-        Lets a set of existing HA thermostats (climate entities) stand in
-        for a physical Sentio room controller: when they show real heat
-        demand, the integration temporarily raises Calefa's own summer-stop
-        (only if it's actually blocking heat right now) and engages the
-        unit's RUM temporary-room override - the same two things a real
-        Sentio controller's demand would otherwise release. Everything is
-        reverted automatically once demand clears, data becomes invalid, or
-        this is turned back off.
-        """
-        if user_input is not None:
-            options = {**self._config_entry.options, **user_input}
-            self.hass.config_entries.async_update_entry(
-                self._config_entry, options=options
-            )
-            await self.hass.config_entries.async_reload(self._config_entry.entry_id)
-            return self.async_create_entry(title="", data={})
-
-        return self.async_show_form(
-            step_id="heat_call",
-            data_schema=_heat_call_schema(self._config_entry.options),
+            step_id="init",
+            data_schema=vol.Schema(schema_dict),
         )

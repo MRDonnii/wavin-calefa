@@ -25,26 +25,14 @@
     "step": {
       "init": {
         "title": "Wavin Calefa indstillinger",
-        "menu_options": {
-          "connection": "Forbindelsesindstillinger",
-          "heat_call": "Varmekald (valgfri Sentio-efterligning)"
-        }
-      },
-      "connection": {
-        "title": "Wavin Calefa indstillinger",
+        "description": "Varmekald lader en eller flere eksisterende termostater fungere som en fysisk Sentio-rumcontroller. Når de viser reelt, vedvarende varmebehov, hæver integrationen midlertidigt Calefas egen sommerstop-grænse - kun når den reelt blokerer varmen lige nu - og aktiverer RUM midlertidig mode, de to ting en rigtig Sentio-controllers behov ellers ville frigøre. Alt gendannes automatisk igen, når behovet forsvinder, data bliver ugyldige, eller funktionen slås fra. Calefas egen regulering, sikkerhedsgrænser og blokeringslogik omgås aldrig. Lad varmekald være deaktiveret, hvis du har en fysisk Sentio-controller.",
         "data": {
           "name": "Navn",
           "host": "IP-adresse",
           "language": "Sensor sprog (auto/da/en)",
           "port": "Port (0 = auto)",
           "unit_id": "Modbus unit ID",
-          "scan_interval": "Opdateringsinterval"
-        }
-      },
-      "heat_call": {
-        "title": "Opsætning af varmekald",
-        "description": "Lader en eller flere eksisterende termostater fungere som en fysisk Sentio-rumcontroller. Når de viser reelt, vedvarende varmebehov, hæver integrationen midlertidigt Calefas egen sommerstop-grænse - kun når den reelt blokerer varmen lige nu - og aktiverer RUM midlertidig mode, de to ting en rigtig Sentio-controllers behov ellers ville frigøre. Alt gendannes automatisk igen, når behovet forsvinder, data bliver ugyldige, eller funktionen slås fra. Calefas egen regulering, sikkerhedsgrænser og blokeringslogik omgås aldrig.",
-        "data": {
+          "scan_interval": "Opdateringsinterval",
           "heat_call_enabled": "Aktivér varmekald",
           "heat_call_climate_entities": "Termostater der overvåges for varmebehov",
           "heat_call_ac_entities": "AC/køleenheder der skal undertrykke behov, mens de aktivt køler (valgfri)",
