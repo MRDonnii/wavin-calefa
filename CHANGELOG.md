@@ -2,6 +2,13 @@
 
 All notable changes to Wavin Calefa are documented in this file.
 
+## [0.4.1] - 2026-08-30
+
+### Fixed
+
+- Heat call options (enable, thermostats, thresholds) were silently discarded on save: the options flow manually applied `entry.options` and then returned an empty `data={}` from `async_create_entry`, which the flow manager immediately re-applied on top, wiping the real values. The flow now returns the real options for the manager to apply, and a config-entry update listener handles the reload afterward instead of reloading from inside the flow (which would have picked up the pre-update options).
+- The options flow is now one combined form instead of a menu with separate steps, for more reliable submission from automation/scripting clients as well as the UI.
+
 ## [0.4.0] - 2026-08-30
 
 ### Added
