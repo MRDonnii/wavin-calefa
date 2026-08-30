@@ -69,12 +69,20 @@ Since 0.4.0, the integration can use a set of your existing Home Assistant therm
 
 Both are the same two settings a real Sentio controller's demand would otherwise release - nothing about Calefa's own regulation, safety limits, or blocking logic is bypassed or written around. Everything reverts automatically the moment demand clears, the thermostats' data becomes invalid or unavailable, or the feature is turned off, and a hard safety limit force-restarts the call if it's ever held longer than expected.
 
+Three kinds of demand source can be combined:
+
+- **Thermostats** (`climate` entities) - compared against their own current/target temperature.
+- **Sensor-only rooms** - for spaces with no thermostat at all (e.g. floor heating on a plain sensor): one `entity_id:target_temperature` per line, compared against a plain temperature sensor's state with the same hysteresis as the thermostats.
+- **Valve/actuator entities** - for demand sources with no temperature-vs-target concept, such as a ventilation unit's water-coil after-heater: demand is signalled by the reported opening percentage crossing a configurable threshold. These are treated as best-effort - an unavailable valve sensor never blocks demand detection for everything else.
+
+A demand source has to hold steady for the configured delay (default 2 minutes) before a call starts the first time, so a brief dip - a window aired out in a sensor-only room, for instance - doesn't itself trigger anything.
+
 ### Setting it up
 
 1. Go to **Settings > Devices & services > Wavin Calefa > Configure**.
-2. Choose **Heat call (optional Sentio emulation)**.
-3. Enable it, pick the thermostats to monitor, and optionally pick AC/cooling entities that should suppress demand while actively cooling.
-4. Adjust the hysteresis, debounce, summer-stop values, RUM target, and the safety time limit if the defaults don't suit your installation.
+2. Enable heat call, pick the thermostats to monitor, and optionally pick AC/cooling entities that should suppress demand while actively cooling.
+3. Optionally add sensor-only rooms (one `entity_id:target_temperature` per line) and valve/actuator entities for demand sources with no thermostat.
+4. Adjust the hysteresis, debounce, summer-stop values, RUM target, valve threshold, and the safety time limit if the defaults don't suit your installation.
 
 This adds a few new entities under the Calefa device:
 

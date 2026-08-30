@@ -2,6 +2,16 @@
 
 All notable changes to Wavin Calefa are documented in this file.
 
+## [0.5.0] - 2026-08-30
+
+### Added
+
+- Heat call now supports two more demand sources besides thermostats: sensor-only rooms (`entity_id:target_temperature` pairs, for spaces like floor heating with no thermostat) and valve/actuator entities (opening-percentage threshold, for sources like a ventilation unit's after-heater with no temperature-vs-target concept). Valve entities are treated as best-effort and never block demand detection for everything else if unavailable.
+
+### Fixed
+
+- The configured restart delay was defined but never actually applied before starting a first heat call - any demand blip, however brief, started one immediately. Demand now has to hold for the configured delay before the first call starts, so a temporary dip (e.g. a window aired out) doesn't trigger anything.
+
 ## [0.4.1] - 2026-08-30
 
 ### Fixed

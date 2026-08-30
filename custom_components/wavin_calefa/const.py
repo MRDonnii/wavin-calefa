@@ -49,6 +49,14 @@ CONF_HEAT_CALL_SUMMER_STOP_NORMAL = "heat_call_summer_stop_normal"
 CONF_HEAT_CALL_SUMMER_STOP_OVERRIDE = "heat_call_summer_stop_override"
 CONF_HEAT_CALL_ROOM_TARGET_TEMPERATURE = "heat_call_room_target_temperature"
 CONF_HEAT_CALL_MAX_DURATION_MINUTES = "heat_call_max_duration_minutes"
+# For rooms with no thermostat at all (e.g. floor heating on a plain
+# sensor): one "entity_id:target_temperature" pair per line.
+CONF_HEAT_CALL_SENSOR_ROOMS = "heat_call_sensor_rooms"
+# For actuator-driven demand sources with no thermostat concept, such as a
+# ventilation unit's water-coil after-heater valve: demand is signalled by
+# the opening percentage crossing a threshold, not a temperature vs target.
+CONF_HEAT_CALL_VALVE_ENTITIES = "heat_call_valve_entities"
+CONF_HEAT_CALL_VALVE_THRESHOLD = "heat_call_valve_threshold"
 
 DEFAULT_HEAT_CALL_HYSTERESIS = 0.5
 DEFAULT_HEAT_CALL_RESTART_DELAY_MINUTES = 2
@@ -56,6 +64,7 @@ DEFAULT_HEAT_CALL_SUMMER_STOP_NORMAL = 18.0
 DEFAULT_HEAT_CALL_SUMMER_STOP_OVERRIDE = 25.0
 DEFAULT_HEAT_CALL_ROOM_TARGET_TEMPERATURE = 30.0
 DEFAULT_HEAT_CALL_MAX_DURATION_MINUTES = 180
+DEFAULT_HEAT_CALL_VALVE_THRESHOLD = 5.0
 
 HEAT_CALL_REGISTER_SUMMER_STOP = 38
 HEAT_CALL_REGISTER_ROOM_TEMPORARY_TEMPERATURE = 7512

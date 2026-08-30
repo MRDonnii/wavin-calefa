@@ -37,14 +37,18 @@ from .const import (
     CONF_HEAT_CALL_MAX_DURATION_MINUTES,
     CONF_HEAT_CALL_RESTART_DELAY_MINUTES,
     CONF_HEAT_CALL_ROOM_TARGET_TEMPERATURE,
+    CONF_HEAT_CALL_SENSOR_ROOMS,
     CONF_HEAT_CALL_SUMMER_STOP_NORMAL,
     CONF_HEAT_CALL_SUMMER_STOP_OVERRIDE,
+    CONF_HEAT_CALL_VALVE_ENTITIES,
+    CONF_HEAT_CALL_VALVE_THRESHOLD,
     DEFAULT_HEAT_CALL_HYSTERESIS,
     DEFAULT_HEAT_CALL_MAX_DURATION_MINUTES,
     DEFAULT_HEAT_CALL_RESTART_DELAY_MINUTES,
     DEFAULT_HEAT_CALL_ROOM_TARGET_TEMPERATURE,
     DEFAULT_HEAT_CALL_SUMMER_STOP_NORMAL,
     DEFAULT_HEAT_CALL_SUMMER_STOP_OVERRIDE,
+    DEFAULT_HEAT_CALL_VALVE_THRESHOLD,
     HEAT_CALL_FAULT_GRACE_MINUTES,
     HEAT_CALL_REFRESH_MINUTES,
     HEAT_CALL_REGISTER_ROOM_TEMPORARY_EXPIRY_HIGH,
@@ -76,6 +80,7 @@ class WavinCalefaHeatCallManager:
         self._call_started_at: float | None = None
         self._baseline_summer_stop: float | None = None
         self._fault_since: float | None = None
+        self._demand_since: float | None = None
         self.data_valid = False
         self.demand = False
         self.summer_stop_blocking = False
@@ -100,6 +105,34 @@ class WavinCalefaHeatCallManager:
     def ac_entities(self) -> list[str]:
         """Return the configured AC/cooling entities that suppress demand."""
         return list(self.options.get(CONF_HEAT_CALL_AC_ENTITIES, []))
+
+    @property
+    def valve_entities(self) -> list[str]:
+        """Return actuator entities (e.g. an after-heater valve) that signal demand by opening."""
+        return list(self.options.get(CONF_HEAT_CALL_VALVE_ENTITIES, []))
+
+    def _sensor_rooms(self) -> list[tuple[str, float]]:
+        """Parse 'entity_id:target_temperature' lines for thermostat-less rooms."""
+        raw = self.options.get(CONF_HEAT_CALL_SENSOR_ROOMS, "")
+        rooms: list[tuple[str, float]] = []
+        for line in str(raw).splitlines():
+            line = line.strip()
+            if not line or ":" not in line:
+                continue
+            entity_id, _, target_text = line.partition(":")
+            try:
+                target = float(target_text.strip())
+            except ValueError:
+                continue
+            rooms.append((entity_id.strip(), target))
+        return rooms
+
+    def _valve_threshold(self) -> float:
+        return float(
+            self.options.get(
+                CONF_HEAT_CALL_VALVE_THRESHOLD, DEFAULT_HEAT_CALL_VALVE_THRESHOLD
+            )
+        )
 
     @property
     def call_active(self) -> bool:
@@ -169,7 +202,12 @@ class WavinCalefaHeatCallManager:
         """Start watching the configured entities."""
         if not self.configured:
             return
-        watched = [*self.climate_entities, *self.ac_entities]
+        watched = [
+            *self.climate_entities,
+            *self.ac_entities,
+            *[entity_id for entity_id, _ in self._sensor_rooms()],
+            *self.valve_entities,
+        ]
         if watched:
             self._unsub_state = async_track_state_change_event(
                 self.hass, watched, self._handle_state_event
@@ -204,15 +242,17 @@ class WavinCalefaHeatCallManager:
         return False
 
     def _evaluate_demand(self) -> tuple[bool, bool]:
-        """Return (data_valid, demand) from the configured thermostats."""
-        entities = self.climate_entities
-        if not entities:
+        """Return (data_valid, demand) across thermostats, sensor rooms, and valves."""
+        climate_entities = self.climate_entities
+        sensor_rooms = self._sensor_rooms()
+        if not climate_entities and not sensor_rooms:
             return False, False
         hysteresis = self._hysteresis()
         cooling = self._cooling_active()
         valid = True
         demand = False
-        for entity_id in entities:
+
+        for entity_id in climate_entities:
             state = self.hass.states.get(entity_id)
             if state is None or state.state in ("unknown", "unavailable"):
                 valid = False
@@ -231,6 +271,37 @@ class WavinCalefaHeatCallManager:
                 or state.attributes.get("hvac_action") == "heating"
             ):
                 demand = True
+
+        for entity_id, target in sensor_rooms:
+            state = self.hass.states.get(entity_id)
+            if state is None or state.state in ("unknown", "unavailable"):
+                valid = False
+                continue
+            try:
+                current = float(state.state)
+            except ValueError:
+                valid = False
+                continue
+            if current <= target - hysteresis:
+                demand = True
+
+        # Valve-driven sources (e.g. a ventilation unit's water-coil
+        # after-heater) are best-effort: unlike thermostats and sensor
+        # rooms, their absence or unavailability never invalidates data for
+        # everything else, since an actuator reading tends to be flakier
+        # than a thermostat or plain temperature sensor.
+        threshold = self._valve_threshold()
+        for entity_id in self.valve_entities:
+            state = self.hass.states.get(entity_id)
+            if state is None:
+                continue
+            try:
+                opening = float(state.state)
+            except ValueError:
+                continue
+            if opening > threshold:
+                demand = True
+
         return valid, demand
 
     def _summer_stop_currently_blocking(self) -> bool:
@@ -245,6 +316,7 @@ class WavinCalefaHeatCallManager:
     async def _async_evaluate(self) -> None:
         """Recompute state and start/stop the heat call as needed."""
         if not self.active:
+            self._demand_since = None
             if self._call_active:
                 await self._async_stop("deaktiveret")
             self._set_public_state(False, False, False, False)
@@ -254,19 +326,30 @@ class WavinCalefaHeatCallManager:
         summer_stop_blocking = self._summer_stop_currently_blocking()
 
         if not data_valid:
+            self._demand_since = None
             if self._call_active:
                 await self._async_stop("ugyldige data")
             self._set_public_state(False, False, summer_stop_blocking, False)
             return
 
         if not demand:
+            self._demand_since = None
             if self._call_active:
                 await self._async_stop("intet behov")
             self._set_public_state(True, False, summer_stop_blocking, False)
             return
 
-        # Real, valid demand from here on.
+        # Real, valid demand from here on. A brief dip - a window airing out
+        # a sensor-only room, for instance - shouldn't itself trigger a
+        # call: demand has to hold for the configured delay first. Once a
+        # call is already active, refresh it immediately on every re-check
+        # instead, since debouncing there would only risk letting it lapse.
         if not self._call_active:
+            if self._demand_since is None:
+                self._demand_since = time.time()
+            if time.time() - self._demand_since < self._restart_delay_minutes() * 60:
+                self._set_public_state(True, False, summer_stop_blocking, False)
+                return
             await self._async_start()
         else:
             if (
