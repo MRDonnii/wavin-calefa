@@ -18,8 +18,11 @@ from .const import (
     CONF_HEAT_CALL_MAX_DURATION_MINUTES,
     CONF_HEAT_CALL_RESTART_DELAY_MINUTES,
     CONF_HEAT_CALL_ROOM_TARGET_TEMPERATURE,
+    CONF_HEAT_CALL_SENSOR_ROOMS,
     CONF_HEAT_CALL_SUMMER_STOP_NORMAL,
     CONF_HEAT_CALL_SUMMER_STOP_OVERRIDE,
+    CONF_HEAT_CALL_VALVE_ENTITIES,
+    CONF_HEAT_CALL_VALVE_THRESHOLD,
     CONF_HOST,
     CONF_LANGUAGE,
     CONF_PORT,
@@ -31,6 +34,7 @@ from .const import (
     DEFAULT_HEAT_CALL_ROOM_TARGET_TEMPERATURE,
     DEFAULT_HEAT_CALL_SUMMER_STOP_NORMAL,
     DEFAULT_HEAT_CALL_SUMMER_STOP_OVERRIDE,
+    DEFAULT_HEAT_CALL_VALVE_THRESHOLD,
     DEFAULT_LANGUAGE,
     DEFAULT_NAME,
     DEFAULT_PORT,
@@ -97,6 +101,28 @@ def _heat_call_schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
                 default=defaults.get(CONF_HEAT_CALL_AC_ENTITIES, []),
             ): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain="climate", multiple=True)
+            ),
+            vol.Optional(
+                CONF_HEAT_CALL_SENSOR_ROOMS,
+                default=defaults.get(CONF_HEAT_CALL_SENSOR_ROOMS, ""),
+            ): selector.TextSelector(
+                selector.TextSelectorConfig(multiline=True)
+            ),
+            vol.Optional(
+                CONF_HEAT_CALL_VALVE_ENTITIES,
+                default=defaults.get(CONF_HEAT_CALL_VALVE_ENTITIES, []),
+            ): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="sensor", multiple=True)
+            ),
+            vol.Optional(
+                CONF_HEAT_CALL_VALVE_THRESHOLD,
+                default=defaults.get(
+                    CONF_HEAT_CALL_VALVE_THRESHOLD, DEFAULT_HEAT_CALL_VALVE_THRESHOLD
+                ),
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=0, max=100, step=1, mode=selector.NumberSelectorMode.BOX
+                )
             ),
             vol.Optional(
                 CONF_HEAT_CALL_HYSTERESIS,
@@ -255,6 +281,9 @@ _HEAT_CALL_OPTION_KEYS = (
     CONF_HEAT_CALL_ENABLED,
     CONF_HEAT_CALL_CLIMATE_ENTITIES,
     CONF_HEAT_CALL_AC_ENTITIES,
+    CONF_HEAT_CALL_SENSOR_ROOMS,
+    CONF_HEAT_CALL_VALVE_ENTITIES,
+    CONF_HEAT_CALL_VALVE_THRESHOLD,
     CONF_HEAT_CALL_HYSTERESIS,
     CONF_HEAT_CALL_RESTART_DELAY_MINUTES,
     CONF_HEAT_CALL_SUMMER_STOP_NORMAL,
