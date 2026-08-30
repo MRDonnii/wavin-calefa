@@ -2,6 +2,16 @@
 
 All notable changes to Wavin Calefa are documented in this file.
 
+## [0.6.0] - 2026-08-30
+
+### Added
+
+- Optional automatic-standby feature: puts the whole Calefa unit into standby once every configured heat-call demand source (thermostats, sensor-rooms, valve entities) is warm enough for long enough, and releases it again the moment real demand returns or data becomes invalid. Shares heat call's configured demand sources instead of asking for them twice, and works independently of whether heat call itself is enabled. Before engaging standby it confirms the unit's own pump call, pump status, and CVV valve position have actually settled, retrying a few times before reporting a fault rather than holding an unconfirmed standby indefinitely. A manually released standby is always respected.
+
+### Changed
+
+- Heat call and automatic standby are now coordinated so they can't work against each other: heat call no longer starts a call while automatic standby has the unit blocked, and automatic standby never engages standby while a heat call is active. Heat call also now reacts to coordinator updates directly, instead of only entity-state changes and its own 30-minute timer, so it notices a released standby promptly.
+
 ## [0.5.0] - 2026-08-30
 
 ### Added

@@ -11,6 +11,8 @@ from homeassistant.core import callback
 from homeassistant.helpers import selector
 
 from .const import (
+    CONF_AUTO_STANDBY_DELAY_MINUTES,
+    CONF_AUTO_STANDBY_ENABLED,
     CONF_HEAT_CALL_AC_ENTITIES,
     CONF_HEAT_CALL_CLIMATE_ENTITIES,
     CONF_HEAT_CALL_ENABLED,
@@ -28,6 +30,7 @@ from .const import (
     CONF_PORT,
     CONF_SCAN_INTERVAL,
     CONF_UNIT_ID,
+    DEFAULT_AUTO_STANDBY_DELAY_MINUTES,
     DEFAULT_HEAT_CALL_HYSTERESIS,
     DEFAULT_HEAT_CALL_MAX_DURATION_MINUTES,
     DEFAULT_HEAT_CALL_RESTART_DELAY_MINUTES,
@@ -193,6 +196,36 @@ def _heat_call_schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
     )
 
 
+def _auto_standby_schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
+    """Build the schema for the optional automatic-standby setup.
+
+    Shares heat_call's thermostats/sensor-rooms/valve entities and hysteresis
+    as its demand signal instead of asking for the same rooms twice, so this
+    schema only adds what's genuinely new: whether the feature is on, and how
+    long everything has to stay warm before it actually engages standby.
+    """
+    defaults = defaults or {}
+    return vol.Schema(
+        {
+            vol.Required(
+                CONF_AUTO_STANDBY_ENABLED,
+                default=defaults.get(CONF_AUTO_STANDBY_ENABLED, False),
+            ): selector.BooleanSelector(),
+            vol.Optional(
+                CONF_AUTO_STANDBY_DELAY_MINUTES,
+                default=defaults.get(
+                    CONF_AUTO_STANDBY_DELAY_MINUTES,
+                    DEFAULT_AUTO_STANDBY_DELAY_MINUTES,
+                ),
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=5, max=60, step=1, mode=selector.NumberSelectorMode.BOX
+                )
+            ),
+        }
+    )
+
+
 def _candidate_ports(requested_port: int) -> tuple[int, ...]:
     """Return ordered candidate ports to probe."""
     ports: list[int] = []
@@ -292,6 +325,13 @@ _HEAT_CALL_OPTION_KEYS = (
     CONF_HEAT_CALL_MAX_DURATION_MINUTES,
 )
 
+_AUTO_STANDBY_OPTION_KEYS = (
+    CONF_AUTO_STANDBY_ENABLED,
+    CONF_AUTO_STANDBY_DELAY_MINUTES,
+)
+
+_OPTION_KEYS = _HEAT_CALL_OPTION_KEYS + _AUTO_STANDBY_OPTION_KEYS
+
 
 class WavinCalefaOptionsFlow(config_entries.OptionsFlow):
     """Options flow for Wavin Calefa.
@@ -309,7 +349,7 @@ class WavinCalefaOptionsFlow(config_entries.OptionsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
-        """Manage connection settings and the optional Sentio-style heat-call setup.
+        """Manage connection settings and the optional heat-call/auto-standby setup.
 
         Heat call lets a set of existing HA thermostats (climate entities)
         stand in for a physical Sentio room controller: when they show real
@@ -319,37 +359,61 @@ class WavinCalefaOptionsFlow(config_entries.OptionsFlow):
         things a real Sentio controller's demand would otherwise release.
         Everything is reverted automatically once demand clears, data
         becomes invalid, or this is turned back off.
+
+        Automatic standby shares heat call's configured thermostats/
+        sensor-rooms/valve entities as its own demand signal and puts the
+        whole unit into standby once every one of them is warm enough for
+        long enough, releasing it again the moment real demand returns. It
+        is independent of whether heat call itself is turned on, but needs
+        at least one thermostat or sensor-room configured above to have a
+        signal to work from at all.
         """
+        errors: dict[str, str] = {}
+
         if user_input is not None:
-            data = {**self._config_entry.data}
-            options = {**self._config_entry.options}
-            for key, value in user_input.items():
-                if key in _HEAT_CALL_OPTION_KEYS:
-                    options[key] = value
-                else:
-                    data[key] = value
-            # entry.data (connection settings) has to be applied by hand, but
-            # entry.options must NOT also be set here: the options flow
-            # manager applies whatever async_create_entry(data=...) returns
-            # as the new options right after this step returns. Setting both
-            # would have that automatic apply immediately clobber this call
-            # with a stale value. The actual reload happens via the
-            # update-listener registered in __init__.py, triggered once the
-            # manager has applied these options - not here, which would run
-            # too early and reload with the old options still in effect.
-            self.hass.config_entries.async_update_entry(
-                self._config_entry,
-                title=data[CONF_NAME],
-                data=data,
+            auto_standby_enabled = user_input.get(CONF_AUTO_STANDBY_ENABLED, False)
+            has_demand_sources = bool(
+                user_input.get(CONF_HEAT_CALL_CLIMATE_ENTITIES)
+                or user_input.get(CONF_HEAT_CALL_SENSOR_ROOMS)
             )
-            return self.async_create_entry(title="", data=options)
+            if auto_standby_enabled and not has_demand_sources:
+                errors["base"] = "auto_standby_needs_demand_sources"
+
+            if not errors:
+                data = {**self._config_entry.data}
+                options = {**self._config_entry.options}
+                for key, value in user_input.items():
+                    if key in _OPTION_KEYS:
+                        options[key] = value
+                    else:
+                        data[key] = value
+                # entry.data (connection settings) has to be applied by hand,
+                # but entry.options must NOT also be set here: the options
+                # flow manager applies whatever async_create_entry(data=...)
+                # returns as the new options right after this step returns.
+                # Setting both would have that automatic apply immediately
+                # clobber this call with a stale value. The actual reload
+                # happens via the update-listener registered in __init__.py,
+                # triggered once the manager has applied these options - not
+                # here, which would run too early and reload with the old
+                # options still in effect.
+                self.hass.config_entries.async_update_entry(
+                    self._config_entry,
+                    title=data[CONF_NAME],
+                    data=data,
+                )
+                return self.async_create_entry(title="", data=options)
 
         defaults = {**self._config_entry.data, **self._config_entry.options}
+        if user_input is not None:
+            defaults = {**defaults, **user_input}
         schema_dict = {
             **_schema(defaults, include_port=True).schema,
             **_heat_call_schema(defaults).schema,
+            **_auto_standby_schema(defaults).schema,
         }
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema(schema_dict),
+            errors=errors,
         )

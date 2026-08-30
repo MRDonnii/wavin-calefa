@@ -25,7 +25,7 @@
     "step": {
       "init": {
         "title": "Wavin Calefa indstillinger",
-        "description": "Varmekald lader en eller flere eksisterende termostater fungere som en fysisk Sentio-rumcontroller. Når de viser reelt, vedvarende varmebehov, hæver integrationen midlertidigt Calefas egen sommerstop-grænse - kun når den reelt blokerer varmen lige nu - og aktiverer RUM midlertidig mode, de to ting en rigtig Sentio-controllers behov ellers ville frigøre. Alt gendannes automatisk igen, når behovet forsvinder, data bliver ugyldige, eller funktionen slås fra. Calefas egen regulering, sikkerhedsgrænser og blokeringslogik omgås aldrig. Lad varmekald være deaktiveret, hvis du har en fysisk Sentio-controller.",
+        "description": "Varmekald lader en eller flere eksisterende termostater fungere som en fysisk Sentio-rumcontroller. Når de viser reelt, vedvarende varmebehov, hæver integrationen midlertidigt Calefas egen sommerstop-grænse - kun når den reelt blokerer varmen lige nu - og aktiverer RUM midlertidig mode, de to ting en rigtig Sentio-controllers behov ellers ville frigøre. Alt gendannes automatisk igen, når behovet forsvinder, data bliver ugyldige, eller funktionen slås fra. Calefas egen regulering, sikkerhedsgrænser og blokeringslogik omgås aldrig. Lad varmekald være deaktiveret, hvis du har en fysisk Sentio-controller.\n\nAutomatisk standby genbruger termostaterne/rummene/ventilerne konfigureret ovenfor som sit eget behovssignal og sætter hele enheden i standby, når alle er varme nok i tilstrækkelig lang tid, og frigiver den igen så snart der er reelt behov. Den virker uafhængigt af om varmekald selv er slået til, men kræver mindst én termostat eller ét sensor-rum konfigureret ovenfor.",
         "data": {
           "name": "Navn",
           "host": "IP-adresse",
@@ -44,9 +44,14 @@
           "heat_call_summer_stop_normal": "Normal sommerstop-grænse (°C)",
           "heat_call_summer_stop_override": "Sommerstop under varmekald (°C)",
           "heat_call_room_target_temperature": "RUM override måltemperatur (°C)",
-          "heat_call_max_duration_minutes": "Sikkerhedsgrænse: genstart kaldet efter (minutter)"
+          "heat_call_max_duration_minutes": "Sikkerhedsgrænse: genstart kaldet efter (minutter)",
+          "auto_standby_enabled": "Aktivér automatisk standby",
+          "auto_standby_delay_minutes": "Hvor længe alt skal være varmt nok før standby aktiveres (minutter)"
         }
       }
+    },
+    "error": {
+      "auto_standby_needs_demand_sources": "Automatisk standby kræver mindst én termostat eller ét sensor-rum konfigureret ovenfor."
     }
   },
   "entity": {

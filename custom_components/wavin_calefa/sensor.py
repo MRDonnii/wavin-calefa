@@ -26,7 +26,9 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from .auto_standby import WavinCalefaAutoStandbyManager
 from .const import (
+    AUTO_STANDBY_DATA,
     CONF_LANGUAGE,
     DEFAULT_LANGUAGE,
     DOMAIN,
@@ -1006,6 +1008,13 @@ async def async_setup_entry(
     ).get(entry.entry_id)
     if heat_call is not None and heat_call.configured:
         entities.append(WavinCalefaHeatCallStatusSensor(heat_call, coordinator, entry))
+    auto_standby: WavinCalefaAutoStandbyManager | None = hass.data.get(
+        AUTO_STANDBY_DATA, {}
+    ).get(entry.entry_id)
+    if auto_standby is not None and auto_standby.configured:
+        entities.append(
+            WavinCalefaAutoStandbyStatusSensor(auto_standby, coordinator, entry)
+        )
     async_add_entities(entities)
 
 
@@ -1152,3 +1161,39 @@ class WavinCalefaHeatCallStatusSensor(SensorEntity):
     def native_value(self) -> str:
         """Return the current status text."""
         return self._heat_call.status_text(self._danish)
+
+
+class WavinCalefaAutoStandbyStatusSensor(SensorEntity):
+    """Human-readable status for the optional automatic-standby feature."""
+
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:radiator-disabled"
+
+    def __init__(
+        self,
+        auto_standby: WavinCalefaAutoStandbyManager,
+        coordinator: WavinCalefaCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the sensor."""
+        self._auto_standby = auto_standby
+        self._danish = _selected_language(coordinator.hass, entry) == LANGUAGE_DA
+        self._attr_unique_id = f"{entry.entry_id}_auto_standby_status"
+        self._attr_name = (
+            "Automatisk standby status" if self._danish else "Automatic standby status"
+        )
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry.entry_id)},
+            name=entry.title,
+        )
+
+    async def async_added_to_hass(self) -> None:
+        """Subscribe to auto-standby manager updates."""
+        self.async_on_remove(
+            self._auto_standby.async_add_listener(self.async_write_ha_state)
+        )
+
+    @property
+    def native_value(self) -> str:
+        """Return the current status text."""
+        return self._auto_standby.status_text(self._danish)
