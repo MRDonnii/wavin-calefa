@@ -6,8 +6,9 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
-from .const import DOMAIN, PLATFORMS
+from .const import DOMAIN, HEAT_CALL_DATA, PLATFORMS
 from .coordinator import WavinCalefaCoordinator
+from .heat_call import WavinCalefaHeatCallManager
 
 
 OBSOLETE_SENSOR_KEYS = {
@@ -62,6 +63,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
     await _async_remove_obsolete_entities(hass, entry)
 
+    heat_call = WavinCalefaHeatCallManager(hass, entry, coordinator)
+    hass.data.setdefault(HEAT_CALL_DATA, {})[entry.entry_id] = heat_call
+    await heat_call.async_setup()
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 
@@ -71,4 +76,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id, None)
+        heat_call: WavinCalefaHeatCallManager | None = hass.data.get(
+            HEAT_CALL_DATA, {}
+        ).pop(entry.entry_id, None)
+        if heat_call is not None:
+            heat_call.async_unload()
     return unload_ok

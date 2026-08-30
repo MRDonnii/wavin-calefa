@@ -212,7 +212,23 @@ class WavinCalefaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                             "Rollback failed for holding register %s", address
                         )
                 raise
-            await self.async_request_refresh()
+
+            # Publish verified holding-register values immediately. A complete
+            # refresh reads every Calefa register and can take several seconds;
+            # controls should not wait for that scan before reflecting a write.
+            updated_data = dict(self.data or {})
+            for key, (address, kind) in HOLDING_REGISTERS.items():
+                if address not in register_values:
+                    continue
+                raw_value = register_values[address] & 0xFFFF
+                updated_data[key] = _convert(raw_value, kind)
+                updated_data[f"{key}_raw"] = raw_value
+            self.async_set_updated_data(updated_data)
+
+            # Reconcile all values in the background. The coordinator coalesces
+            # overlapping refresh requests, so rapid consecutive writes do not
+            # start an unbounded number of full scans.
+            self.hass.async_create_task(self.async_request_refresh())
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Update data from the unit."""
