@@ -5,10 +5,9 @@ so the unit never receives a genuine room heat-call signal - space heating
 stays gated by the unit's own summer-stop threshold with nothing to release
 it. This module lets a set of existing Home Assistant climate entities
 (thermostats) stand in for that missing controller: when they show real,
-sustained heat demand, it temporarily raises summer-stop (only if summer-stop
-is actually the thing blocking heat right now) and engages the unit's RUM
-temporary-room override, the same two writable settings a real Sentio
-controller's demand would otherwise release. Everything is reverted the
+sustained heat demand below the unit's own summer-stop threshold, it engages
+the unit's RUM temporary-room override. Summer stop is read from the unit on
+every evaluation and is never written by this manager. The room call ends the
 moment demand is gone, data becomes invalid, or the feature is turned off -
 none of Calefa's own regulation, safety limits, or blocking logic is bypassed
 or written around.
@@ -17,8 +16,10 @@ or written around.
 from __future__ import annotations
 
 from collections.abc import Callable
+import asyncio
 from datetime import timedelta
 import logging
+import math
 import time
 from typing import Any
 
@@ -38,16 +39,12 @@ from .const import (
     CONF_HEAT_CALL_RESTART_DELAY_MINUTES,
     CONF_HEAT_CALL_ROOM_TARGET_TEMPERATURE,
     CONF_HEAT_CALL_SENSOR_ROOMS,
-    CONF_HEAT_CALL_SUMMER_STOP_NORMAL,
-    CONF_HEAT_CALL_SUMMER_STOP_OVERRIDE,
     CONF_HEAT_CALL_VALVE_ENTITIES,
     CONF_HEAT_CALL_VALVE_THRESHOLD,
     DEFAULT_HEAT_CALL_HYSTERESIS,
     DEFAULT_HEAT_CALL_MAX_DURATION_MINUTES,
     DEFAULT_HEAT_CALL_RESTART_DELAY_MINUTES,
     DEFAULT_HEAT_CALL_ROOM_TARGET_TEMPERATURE,
-    DEFAULT_HEAT_CALL_SUMMER_STOP_NORMAL,
-    DEFAULT_HEAT_CALL_SUMMER_STOP_OVERRIDE,
     DEFAULT_HEAT_CALL_VALVE_THRESHOLD,
     HEAT_CALL_FAULT_GRACE_MINUTES,
     HEAT_CALL_REFRESH_MINUTES,
@@ -55,7 +52,6 @@ from .const import (
     HEAT_CALL_REGISTER_ROOM_TEMPORARY_EXPIRY_LOW,
     HEAT_CALL_REGISTER_ROOM_TEMPORARY_MODE,
     HEAT_CALL_REGISTER_ROOM_TEMPORARY_TEMPERATURE,
-    HEAT_CALL_REGISTER_SUMMER_STOP,
 )
 from .coordinator import WavinCalefaCoordinator
 
@@ -79,7 +75,12 @@ class WavinCalefaHeatCallManager:
         self._unsub_coordinator: Callable[[], None] | None = None
         self._call_active = False
         self._call_started_at: float | None = None
-        self._baseline_summer_stop: float | None = None
+        self._evaluation_lock = asyncio.Lock()
+        self._stopped = False
+        self._last_write_attempt: float | None = None
+        self._last_refresh: float | None = None
+        self._last_target_raw: int | None = None
+        self._write_failed = False
         self._fault_since: float | None = None
         self._demand_since: float | None = None
         self.data_valid = False
@@ -176,14 +177,6 @@ class WavinCalefaHeatCallManager:
             )
         )
 
-    def _summer_stop_override(self) -> float:
-        return float(
-            self.options.get(
-                CONF_HEAT_CALL_SUMMER_STOP_OVERRIDE,
-                DEFAULT_HEAT_CALL_SUMMER_STOP_OVERRIDE,
-            )
-        )
-
     def _room_target(self) -> float:
         return float(
             self.options.get(
@@ -245,6 +238,7 @@ class WavinCalefaHeatCallManager:
 
     def async_unload(self) -> None:
         """Stop watching entities and release any held override."""
+        self._stopped = True
         if self._unsub_state is not None:
             self._unsub_state()
             self._unsub_state = None
@@ -328,6 +322,9 @@ class WavinCalefaHeatCallManager:
             state = self.hass.states.get(entity_id)
             if state is None:
                 continue
+            if state.state == "on":
+                demand = True
+                continue
             try:
                 opening = float(state.state)
             except ValueError:
@@ -391,6 +388,9 @@ class WavinCalefaHeatCallManager:
             state = self.hass.states.get(entity_id)
             if state is None:
                 continue
+            if state.state == "on":
+                warm = False
+                continue
             try:
                 opening = float(state.state)
             except ValueError:
@@ -400,17 +400,27 @@ class WavinCalefaHeatCallManager:
 
         return valid, warm
 
-    def _summer_stop_currently_blocking(self) -> bool:
+    def _summer_stop_currently_blocking(self) -> bool | None:
+        """Use only fresh, finite unit readings; None means fail closed."""
         outdoor = self.coordinator.data.get("outdoor_temperature")
-        normal = self.options.get(
-            CONF_HEAT_CALL_SUMMER_STOP_NORMAL, DEFAULT_HEAT_CALL_SUMMER_STOP_NORMAL
-        )
-        if not isinstance(outdoor, (int, float)):
-            return False
-        return outdoor >= float(normal)
+        threshold = self.coordinator.data.get("itc_max_outdoor_temp")
+        if not self.coordinator.last_update_success or any(
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(value)
+            for value in (outdoor, threshold)
+        ):
+            return None
+        return outdoor >= threshold
 
     async def _async_evaluate(self) -> None:
         """Recompute state and start/stop the heat call as needed."""
+        async with self._evaluation_lock:
+            await self._async_evaluate_locked()
+
+    async def _async_evaluate_locked(self) -> None:
+        if self._stopped:
+            return
         if not self.active:
             self._demand_since = None
             if self._call_active:
@@ -420,12 +430,20 @@ class WavinCalefaHeatCallManager:
 
         data_valid, demand = self.evaluate_demand()
         summer_stop_blocking = self._summer_stop_currently_blocking()
+        data_valid = data_valid and summer_stop_blocking is not None
 
         if not data_valid:
             self._demand_since = None
             if self._call_active:
                 await self._async_stop("ugyldige data")
-            self._set_public_state(False, False, summer_stop_blocking, False)
+            self._set_public_state(False, False, bool(summer_stop_blocking), False)
+            return
+
+        if summer_stop_blocking:
+            self._demand_since = None
+            if self._call_active:
+                await self._async_stop("sommerstop")
+            self._set_public_state(True, demand, True, False)
             return
 
         if not demand:
@@ -444,7 +462,7 @@ class WavinCalefaHeatCallManager:
             if self._demand_since is None:
                 self._demand_since = time.time()
             if time.time() - self._demand_since < self.restart_delay_minutes() * 60:
-                self._set_public_state(True, False, summer_stop_blocking, False)
+                self._set_public_state(True, True, summer_stop_blocking, False)
                 return
             if self.coordinator.data.get("standby") == 1:
                 # The whole unit is in standby - most likely the
@@ -452,7 +470,7 @@ class WavinCalefaHeatCallManager:
                 # now would be pointless; keep waiting and re-check on the
                 # next state change or coordinator poll, without resetting
                 # the demand timer (the demand itself hasn't gone away).
-                self._set_public_state(True, False, summer_stop_blocking, False)
+                self._set_public_state(True, True, summer_stop_blocking, False)
                 return
             await self._async_start()
         else:
@@ -464,7 +482,8 @@ class WavinCalefaHeatCallManager:
                     "Wavin Calefa heat call held active past its safety limit, restarting it"
                 )
                 await self._async_stop("sikkerhedsgraense")
-                await self._async_start()
+                if not self._call_active:
+                    await self._async_start()
             else:
                 await self._async_refresh()
 
@@ -474,6 +493,7 @@ class WavinCalefaHeatCallManager:
     def _set_public_state(
         self, data_valid: bool, demand: bool, summer_stop_blocking: bool, fault: bool
     ) -> None:
+        fault = fault or self._write_failed
         changed = (
             data_valid != self.data_valid
             or demand != self.demand
@@ -504,28 +524,35 @@ class WavinCalefaHeatCallManager:
         return elapsed > HEAT_CALL_FAULT_GRACE_MINUTES * 60
 
     async def _async_start(self) -> None:
-        """Begin holding the heat-call override, capturing the current baseline."""
-        current_summer_stop = self.coordinator.data.get("itc_max_outdoor_temp")
-        if isinstance(current_summer_stop, (int, float)) and current_summer_stop < self._summer_stop_override():
-            self._baseline_summer_stop = float(current_summer_stop)
-        elif self._baseline_summer_stop is None:
-            self._baseline_summer_stop = self.options.get(
-                CONF_HEAT_CALL_SUMMER_STOP_NORMAL, DEFAULT_HEAT_CALL_SUMMER_STOP_NORMAL
-            )
+        """Begin a room call without changing the unit's summer-stop setting."""
+        if self._summer_stop_currently_blocking() is not False:
+            return
         self._call_active = True
         self._call_started_at = time.time()
         await self._async_refresh()
 
     async def _async_refresh(self) -> None:
         """Write the override registers again, only touching what's needed."""
+        if self._summer_stop_currently_blocking() is not False:
+            if self._call_active:
+                await self._async_stop("sommerstop eller ugyldige data")
+            return
         registers: dict[int, int] = {}
-        if self.summer_stop_blocking:
-            override_raw = round(self._summer_stop_override() * 100) & 0xFFFF
-            current = self.coordinator.data.get("itc_max_outdoor_temp")
-            if not isinstance(current, (int, float)) or round(current * 100) != override_raw:
-                registers[HEAT_CALL_REGISTER_SUMMER_STOP] = override_raw
 
         target_raw = round(self._room_target() * 100) & 0xFFFF
+        now = time.monotonic()
+        # Writes publish coordinator updates which trigger this method again.
+        # Refresh a lease, not every poll; also bound retries on communication errors.
+        if self._last_write_attempt is not None and now - self._last_write_attempt < 60:
+            return
+        if (
+            not self._write_failed
+            and self._last_refresh is not None
+            and now - self._last_refresh < HEAT_CALL_REFRESH_MINUTES * 60
+            and self._last_target_raw == target_raw
+        ):
+            return
+        self._last_write_attempt = now
         expiry = int(time.time()) + HEAT_CALL_REFRESH_MINUTES * 60 * 2
         registers[HEAT_CALL_REGISTER_ROOM_TEMPORARY_TEMPERATURE] = target_raw
         registers[HEAT_CALL_REGISTER_ROOM_TEMPORARY_EXPIRY_HIGH] = (expiry >> 16) & 0xFFFF
@@ -534,28 +561,30 @@ class WavinCalefaHeatCallManager:
 
         try:
             await self.coordinator.async_write_holding_registers(registers)
+            self._write_failed = False
+            self._last_refresh = time.monotonic()
+            self._last_target_raw = target_raw
         except Exception:  # noqa: BLE001 - surfaced as the fault sensor, not raised
+            self._write_failed = True
             LOGGER.exception("Wavin Calefa heat call: failed to refresh override registers")
 
     async def _async_stop(self, reason: str) -> None:
-        """Release the heat-call override and restore the baseline summer stop."""
+        """Release only the room call; never overwrite the user's unit setting."""
         LOGGER.debug("Wavin Calefa heat call ending (%s)", reason)
-        restore = self._baseline_summer_stop
-        if restore is None:
-            restore = self.options.get(
-                CONF_HEAT_CALL_SUMMER_STOP_NORMAL, DEFAULT_HEAT_CALL_SUMMER_STOP_NORMAL
-            )
         registers = {
             HEAT_CALL_REGISTER_ROOM_TEMPORARY_MODE: 0,
-            HEAT_CALL_REGISTER_SUMMER_STOP: round(float(restore) * 100) & 0xFFFF,
         }
         try:
             await self.coordinator.async_write_holding_registers(registers)
-        except Exception:  # noqa: BLE001 - best-effort revert, don't block state reset
+            self._write_failed = False
+        except Exception:  # noqa: BLE001 - retain ownership and retry on next poll
+            self._write_failed = True
             LOGGER.exception("Wavin Calefa heat call: failed to revert override registers")
+            return
         self._call_active = False
+        self._last_refresh = None
+        self._last_write_attempt = None
         self._call_started_at = None
-        self._baseline_summer_stop = None
         self._fault_since = None
 
     def status_text(self, danish: bool) -> str:
@@ -568,8 +597,12 @@ class WavinCalefaHeatCallManager:
             return "Fejlsikring" if danish else "Failsafe"
         if self.fault:
             return "Intet svar fra Calefa" if danish else "No response from Calefa"
+        if self.summer_stop_blocking:
+            return "Sommerstop" if danish else "Summer stop"
         if self.call_active:
             return "Varmekald aktivt" if danish else "Heat call active"
+        if self.demand and self.coordinator.data.get("standby") == 1:
+            return "Blokeret af standby" if danish else "Blocked by standby"
         if not self.demand:
             return "Intet behov" if danish else "No demand"
         return "Venter" if danish else "Waiting"

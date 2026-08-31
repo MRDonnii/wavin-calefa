@@ -66,11 +66,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     heat_call = WavinCalefaHeatCallManager(hass, entry, coordinator)
     hass.data.setdefault(HEAT_CALL_DATA, {})[entry.entry_id] = heat_call
-    await heat_call.async_setup()
 
     auto_standby = WavinCalefaAutoStandbyManager(hass, entry, coordinator, heat_call)
     hass.data.setdefault(AUTO_STANDBY_DATA, {})[entry.entry_id] = auto_standby
-    await auto_standby.async_setup()
 
     # Reload once the options flow manager has actually applied new options
     # (see config_flow.py) rather than reloading from within the flow
@@ -79,6 +77,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    # Restore runtime switches before either manager can act on the unit.
+    await auto_standby.async_setup()
+    await heat_call.async_setup()
     return True
 
 
