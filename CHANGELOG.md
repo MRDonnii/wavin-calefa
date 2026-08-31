@@ -2,6 +2,18 @@
 
 All notable changes to Wavin Calefa are documented in this file.
 
+## [0.6.1] - 2026-09-01
+
+### Fixed
+
+- Automatic standby now waits for all configured demand conditions, including binary ON/OFF sources such as Dantherm afterheat, before stopping the Calefa unit.
+- Pump-stop confirmation allows the Calefa pump's normal run-on time, still reports a genuinely stuck pump, and clears a latched fault when the pump subsequently stops safely.
+- Heat-call and standby diagnostics now fail safe while thermostat data is unavailable and recover automatically when valid data returns.
+
+### Changed
+
+- Demand-source selection accepts both percentage sensors and binary sensors, allowing a verified afterheat-active signal to replace an unreliable inferred valve percentage.
+
 ## [0.6.0] - 2026-08-30
 
 ### Added

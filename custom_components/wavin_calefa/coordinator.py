@@ -233,7 +233,9 @@ class WavinCalefaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def _async_update_data(self) -> dict[str, Any]:
         """Update data from the unit."""
         try:
-            return await self.hass.async_add_executor_job(self._read_all)
+            # Do not interleave an old full snapshot with a verified write.
+            async with self._write_lock:
+                return await self.hass.async_add_executor_job(self._read_all)
         except WavinCalefaError as err:
             raise UpdateFailed(str(err)) from err
 

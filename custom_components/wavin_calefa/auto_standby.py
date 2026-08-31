@@ -14,6 +14,7 @@ always respected: this feature never fights a change it didn't make itself.
 from __future__ import annotations
 
 from collections.abc import Callable
+import asyncio
 import logging
 import time
 from typing import Any
@@ -21,6 +22,7 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.helpers.storage import Store
 
 from .const import (
     AUTO_STANDBY_PUMPSTOP_RETRY_COUNT,
@@ -57,6 +59,9 @@ class WavinCalefaAutoStandbyManager:
         self._unsub_coordinator: Callable[[], None] | None = None
         self._unsub_heat_call: Callable[[], None] | None = None
         self._engaged = False
+        self._evaluation_lock = asyncio.Lock()
+        self._stopped = False
+        self._store = Store(hass, 1, f"wavin_calefa.{entry.entry_id}.auto_standby", atomic_writes=True)
         self._warm_since: float | None = None
         self._demand_since: float | None = None
         self._pumpstop_confirmed = False
@@ -112,6 +117,8 @@ class WavinCalefaAutoStandbyManager:
         """Start watching the demand sources shared with heat_call."""
         if not self.configured:
             return
+        saved = await self._store.async_load()
+        self._engaged = bool(saved and saved.get("engaged"))
         watched = [
             *self._heat_call.climate_entities,
             *self._heat_call.ac_entities,
@@ -132,6 +139,7 @@ class WavinCalefaAutoStandbyManager:
 
     def async_unload(self) -> None:
         """Stop watching entities and release any held standby."""
+        self._stopped = True
         if self._unsub_state is not None:
             self._unsub_state()
             self._unsub_state = None
@@ -155,6 +163,11 @@ class WavinCalefaAutoStandbyManager:
 
     async def _async_evaluate(self) -> None:
         """Recompute state and engage/release standby as needed."""
+        async with self._evaluation_lock:
+            if not self._stopped:
+                await self._async_evaluate_locked()
+
+    async def _async_evaluate_locked(self) -> None:
         if not self.active:
             self._warm_since = None
             self._demand_since = None
@@ -196,10 +209,11 @@ class WavinCalefaAutoStandbyManager:
             return
 
         # Engaged from here on.
-        if self.coordinator.data.get("standby") != 1:
+        if self.coordinator.data.get("standby") == 0:
             # Someone released it manually - respect that instead of
             # fighting it back on.
             self._forget_engagement()
+            await self._store.async_save({"engaged": False})
             self._set_public_state(True, all_warm, demand, False, False, False)
             return
 
@@ -262,11 +276,16 @@ class WavinCalefaAutoStandbyManager:
 
     async def _async_check_pumpstop_safe(self) -> None:
         """Confirm the pump has actually stopped, retrying standby a few times if not."""
-        if self._pumpstop_confirmed or self._pumpstop_error:
+        if self._pumpstop_confirmed:
             return
         safe = self._pumpstop_safe()
         if safe:
             self._pumpstop_confirmed = True
+            # A late but successful physical stop is healthy. Do not leave a
+            # stale latched fault after Calefa's normal pump overrun finishes.
+            self._pumpstop_error = False
+            return
+        if self._pumpstop_error:
             return
         if safe is None:
             return
@@ -289,6 +308,9 @@ class WavinCalefaAutoStandbyManager:
 
     async def _async_engage(self) -> None:
         """Put the unit into standby and start confirming the pump stopped."""
+        # Save intent first so a restart between the write and readback is safe.
+        await self._store.async_save({"engaged": True})
+        self._engaged = True
         await self.coordinator.async_write_holding_register(REGISTER_STANDBY, 1)
         self._engaged = True
         self._pumpstop_confirmed = False
@@ -303,6 +325,14 @@ class WavinCalefaAutoStandbyManager:
         LOGGER.debug("Wavin Calefa auto standby releasing (%s)", reason)
         await self.coordinator.async_write_holding_register(REGISTER_STANDBY, 0)
         self._forget_engagement()
+        await self._store.async_save({"engaged": False})
+
+    async def async_manual_standby(self, enabled: bool) -> None:
+        """Serialize a manual choice and stop claiming automatic ownership."""
+        async with self._evaluation_lock:
+            await self.coordinator.async_write_holding_register(REGISTER_STANDBY, int(enabled))
+            self._forget_engagement()
+            await self._store.async_save({"engaged": False})
 
     def _forget_engagement(self) -> None:
         self._engaged = False
@@ -323,6 +353,8 @@ class WavinCalefaAutoStandbyManager:
             return "Fejlsikring" if danish else "Failsafe"
         if self.fault:
             return "Pumpestop fejl" if danish else "Pump-stop fault"
+        if self.coordinator.data.get("standby") == 1 and not self._engaged:
+            return "Standby uden automatisk ejerskab" if danish else "Standby not owned by automation"
         if self.standby_engaged and self.pumpstop_confirmed:
             return "Standby aktiv" if danish else "Standby active"
         if self.standby_engaged:

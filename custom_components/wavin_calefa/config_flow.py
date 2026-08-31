@@ -115,7 +115,9 @@ def _heat_call_schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
                 CONF_HEAT_CALL_VALVE_ENTITIES,
                 default=defaults.get(CONF_HEAT_CALL_VALVE_ENTITIES, []),
             ): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain="sensor", multiple=True)
+                selector.EntitySelectorConfig(
+                    domain=["sensor", "binary_sensor"], multiple=True
+                )
             ),
             vol.Optional(
                 CONF_HEAT_CALL_VALVE_THRESHOLD,
@@ -146,28 +148,6 @@ def _heat_call_schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
             ): selector.NumberSelector(
                 selector.NumberSelectorConfig(
                     min=0, max=30, step=1, mode=selector.NumberSelectorMode.BOX
-                )
-            ),
-            vol.Optional(
-                CONF_HEAT_CALL_SUMMER_STOP_NORMAL,
-                default=defaults.get(
-                    CONF_HEAT_CALL_SUMMER_STOP_NORMAL,
-                    DEFAULT_HEAT_CALL_SUMMER_STOP_NORMAL,
-                ),
-            ): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=10, max=25, step=0.5, mode=selector.NumberSelectorMode.BOX
-                )
-            ),
-            vol.Optional(
-                CONF_HEAT_CALL_SUMMER_STOP_OVERRIDE,
-                default=defaults.get(
-                    CONF_HEAT_CALL_SUMMER_STOP_OVERRIDE,
-                    DEFAULT_HEAT_CALL_SUMMER_STOP_OVERRIDE,
-                ),
-            ): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=10, max=25, step=0.5, mode=selector.NumberSelectorMode.BOX
                 )
             ),
             vol.Optional(
