@@ -99,11 +99,19 @@ class WavinCalefaStandbySwitch(
 
     async def async_turn_on(self, **kwargs: object) -> None:
         """Activate standby and block space heating."""
-        await self.coordinator.async_write_holding_register(REGISTER_STANDBY, 1)
+        manager = self.hass.data.get(AUTO_STANDBY_DATA, {}).get(self.coordinator.entry.entry_id)
+        if manager is not None:
+            await manager.async_manual_standby(True)
+        else:
+            await self.coordinator.async_write_holding_register(REGISTER_STANDBY, 1)
 
     async def async_turn_off(self, **kwargs: object) -> None:
         """Release standby and allow space heating."""
-        await self.coordinator.async_write_holding_register(REGISTER_STANDBY, 0)
+        manager = self.hass.data.get(AUTO_STANDBY_DATA, {}).get(self.coordinator.entry.entry_id)
+        if manager is not None:
+            await manager.async_manual_standby(False)
+        else:
+            await self.coordinator.async_write_holding_register(REGISTER_STANDBY, 0)
 
 
 class WavinCalefaVacationSwitch(
