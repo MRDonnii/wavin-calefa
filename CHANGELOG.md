@@ -2,6 +2,12 @@
 
 All notable changes to Wavin Calefa are documented in this file.
 
+## [0.7.1] - 2026-09-02
+
+### Fixed
+
+- Upgrading from 0.4.0-0.6.1 with heat call previously engaged could leave the unit's RUM temporary-room override permanently on: the only code that ever released it was removed along with the feature in 0.7.0, so nothing turned it back off, and the CVV valve stayed driven fully open even with every room satisfied - not new demand, just a stale command from before the update. A one-time migration now releases it automatically on upgrade (best-effort - if the unit isn't reachable during migration, the log names the "RUM Midl. mode" switch to turn off by hand). The now-unused `heat_call_enabled`, `heat_call_room_target_temperature`, `heat_call_max_duration_minutes`, `heat_call_summer_stop_normal`, and `heat_call_summer_stop_override` keys are also dropped from the config entry's stored options as part of the same migration.
+
 ## [0.7.0] - 2026-09-02
 
 ### Removed
