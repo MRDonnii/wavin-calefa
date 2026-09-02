@@ -18,8 +18,8 @@
 ## Features
 
 - Fully local Modbus TCP communication with automatic port detection
-- 44 operational and diagnostic sensors
-- 21 fault and warning binary sensors
+- 43 operational and diagnostic sensors
+- 17 fault and warning binary sensors
 - 23 verified writable controls with direct readback
 - Danish and English entity presentation
 - Separate Home Assistant devices for system, heating, room control, and domestic hot water
@@ -58,16 +58,12 @@ All writes are serialized and checked by reading the value back from the Calefa 
 > [!CAUTION]
 > Writable entities change the heating unit itself. Use values suitable for your installation. Available registers can vary by Calefa/Sentio model and firmware.
 
-## Optional: heat call (Sentio emulation)
+> [!NOTE]
+> Versions 0.4.0-0.6.1 included an optional "heat call" feature that used a set of HA thermostats to force Calefa's RUM temporary-room override open when they showed demand, as a stand-in for a physical Sentio room controller. It has been removed as of 0.7.0: Calefa has no live per-room reading to modulate the CVV valve against, so engaging the override always drove it fully open regardless of how small the real deficit was - blunt, and hard on afkoling for no proportionate benefit. See CHANGELOG for details. The demand sources below still exist, purely to feed automatic standby.
 
-Some Calefa installations have no physical Sentio room controller attached. Without one, the unit never receives a genuine room heat-call signal, so space heating stays gated by the unit's own summer-stop threshold with nothing to release it.
+## Optional: automatic standby
 
-Since 0.4.0, the integration can use a set of your existing Home Assistant thermostats (`climate` entities) as a stand-in for that missing controller. When they show real, sustained heat demand, it:
-
-1. Temporarily raises Calefa's own summer-stop threshold - but **only** when the threshold is actually the thing blocking heat right now (compared against the live outdoor temperature); otherwise it's left alone entirely.
-2. Engages the unit's RUM temporary-room override with a configurable target temperature.
-
-Both are the same two settings a real Sentio controller's demand would otherwise release - nothing about Calefa's own regulation, safety limits, or blocking logic is bypassed or written around. Everything reverts automatically the moment demand clears, the thermostats' data becomes invalid or unavailable, or the feature is turned off, and a hard safety limit force-restarts the call if it's ever held longer than expected.
+Puts the **whole Calefa unit into standby** once every configured thermostat/sensor-room/valve is warm enough for long enough, and releases it again the moment real demand returns or the data becomes invalid.
 
 Three kinds of demand source can be combined:
 
@@ -75,42 +71,16 @@ Three kinds of demand source can be combined:
 - **Sensor-only rooms** - for spaces with no thermostat at all (e.g. floor heating on a plain sensor): one `entity_id:target_temperature` per line, compared against a plain temperature sensor's state with the same hysteresis as the thermostats.
 - **Valve/actuator entities** - for demand sources with no temperature-vs-target concept, such as a ventilation unit's water-coil after-heater: demand is signalled by the reported opening percentage crossing a configurable threshold. These are treated as best-effort - an unavailable valve sensor never blocks demand detection for everything else.
 
-A demand source has to hold steady for the configured delay (default 2 minutes) before a call starts the first time, so a brief dip - a window aired out in a sensor-only room, for instance - doesn't itself trigger anything.
-
-### Setting it up
-
-1. Go to **Settings > Devices & services > Wavin Calefa > Configure**.
-2. Enable heat call, pick the thermostats to monitor, and optionally pick AC/cooling entities that should suppress demand while actively cooling.
-3. Optionally add sensor-only rooms (one `entity_id:target_temperature` per line) and valve/actuator entities for demand sources with no thermostat.
-4. Adjust the hysteresis, debounce, summer-stop values, RUM target, valve threshold, and the safety time limit if the defaults don't suit your installation.
-
-This adds a few new entities under the Calefa device:
-
-| Entity | Purpose |
-|---|---|
-| Heat call (switch) | Pause or resume the feature at any time, independent of the setup above |
-| Heat call status (sensor) | Human-readable current state |
-| Heat call in progress (binary sensor) | On while an override is being held active |
-| Heat call fault (binary sensor) | On if Calefa hasn't responded to an active call for 20 minutes |
-| Heat call data valid (binary sensor, diagnostic) | On while the configured thermostats report usable data |
-| Summer stop blocking (binary sensor, diagnostic) | On when summer-stop is what's currently blocking heat |
-
-> [!NOTE]
-> This reproduces the *effect* of a Sentio controller's demand signal by using the same writable settings a real one relies on - it does not emulate Sentio's own communication protocol. If you have (or add) a real Sentio room controller, prefer that; this feature is meant for installations that don't have one.
-
-## Optional: automatic standby
-
-A separate, independent feature from heat call: instead of raising summer-stop, it puts the **whole Calefa unit into standby** once every configured thermostat/sensor-room/valve is warm enough for long enough, and releases it again the moment real demand returns or the data becomes invalid. It shares heat call's configured demand sources (so nothing has to be set up twice) but works whether or not heat call itself is enabled - useful, for example, if a physical Sentio controller already handles summer-stop and RUM, but the unit should still power down between heating cycles.
+These sources are only ever read - nothing about Calefa's own regulation is written to or bypassed.
 
 Before actually engaging standby, and again after, it confirms the unit's own pump call, pump status, and CVV valve position have genuinely settled - retrying a few times before reporting a fault rather than holding an unconfirmed standby indefinitely. If standby is ever released manually (or by something else), that's always respected; the feature only ever acts on standby it engaged itself.
 
-The two features are coordinated so they can't work against each other: heat call never starts a call while automatic standby has the unit blocked, and automatic standby never engages standby while a heat call is active.
-
 ### Setting it up
 
 1. Go to **Settings > Devices & services > Wavin Calefa > Configure**.
-2. Configure at least one thermostat or sensor-only room under heat call above (automatic standby needs that as its demand signal, even with heat call itself left disabled).
-3. Enable automatic standby and adjust how long everything must stay warm before it engages, if the default doesn't suit your installation.
+2. Configure at least one thermostat or sensor-only room as a demand source (automatic standby needs that as its demand signal), and optionally pick AC/cooling entities that should suppress demand while actively cooling.
+3. Optionally add sensor-only rooms (one `entity_id:target_temperature` per line) and valve/actuator entities for demand sources with no thermostat.
+4. Enable automatic standby and adjust the hysteresis, debounce, and how long everything must stay warm before it engages, if the defaults don't suit your installation.
 
 This adds a few more entities under the Calefa device:
 

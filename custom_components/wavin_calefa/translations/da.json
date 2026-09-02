@@ -25,7 +25,7 @@
     "step": {
       "init": {
         "title": "Wavin Calefa indstillinger",
-        "description": "Varmekald lader en eller flere eksisterende termostater fungere som en fysisk Sentio-rumcontroller. Når de viser reelt, vedvarende varmebehov, hæver integrationen midlertidigt Calefas egen sommerstop-grænse - kun når den reelt blokerer varmen lige nu - og aktiverer RUM midlertidig mode, de to ting en rigtig Sentio-controllers behov ellers ville frigøre. Alt gendannes automatisk igen, når behovet forsvinder, data bliver ugyldige, eller funktionen slås fra. Calefas egen regulering, sikkerhedsgrænser og blokeringslogik omgås aldrig. Lad varmekald være deaktiveret, hvis du har en fysisk Sentio-controller.\n\nAutomatisk standby genbruger termostaterne/rummene/ventilerne konfigureret ovenfor som sit eget behovssignal og sætter hele enheden i standby, når alle er varme nok i tilstrækkelig lang tid, og frigiver den igen så snart der er reelt behov. Den virker uafhængigt af om varmekald selv er slået til, men kræver mindst én termostat eller ét sensor-rum konfigureret ovenfor.",
+        "description": "Konfigurér en eller flere eksisterende termostater, sensor-rum uden termostat, og ventil/aktuator-enheder som et fælles varmebehovs-signal - det læses kun, der skrives aldrig til dem. Automatisk standby bruger dette signal til at sætte hele enheden i standby, når alle er varme nok i tilstrækkelig lang tid, og frigiver den igen så snart der er reelt behov. Kræver mindst én termostat eller ét sensor-rum konfigureret nedenfor.",
         "data": {
           "name": "Navn",
           "host": "IP-adresse",
@@ -33,18 +33,13 @@
           "port": "Port (0 = auto)",
           "unit_id": "Modbus unit ID",
           "scan_interval": "Opdateringsinterval",
-          "heat_call_enabled": "Aktivér varmekald",
           "heat_call_climate_entities": "Termostater der overvåges for varmebehov",
           "heat_call_ac_entities": "AC/køleenheder der skal undertrykke behov, mens de aktivt køler (valgfri)",
           "heat_call_sensor_rooms": "Rum uden termostat (én 'entity_id:måltemperatur' pr. linje, f.eks. sensor.badevaerelse_temperatur:22)",
           "heat_call_valve_entities": "Aktuator-enheder der signalerer behov ved at åbne, f.eks. en ventilationsenheds eftervarme-ventil (valgfri)",
           "heat_call_valve_threshold": "Ventilåbning der regnes som behov (%)",
           "heat_call_hysteresis": "Hysterese (°C under mål før behov starter)",
-          "heat_call_restart_delay_minutes": "Afventning før første varmekald starter (minutter)",
-          "heat_call_summer_stop_normal": "Normal sommerstop-grænse (°C)",
-          "heat_call_summer_stop_override": "Sommerstop under varmekald (°C)",
-          "heat_call_room_target_temperature": "RUM override måltemperatur (°C)",
-          "heat_call_max_duration_minutes": "Sikkerhedsgrænse: genstart kaldet efter (minutter)",
+          "heat_call_restart_delay_minutes": "Hvor længe reelt behov skal holde ved før automatisk standby frigiver (minutter)",
           "auto_standby_enabled": "Aktivér automatisk standby",
           "auto_standby_delay_minutes": "Hvor længe alt skal være varmt nok før standby aktiveres (minutter)"
         }

@@ -32,13 +32,11 @@ from .const import (
     CONF_LANGUAGE,
     DEFAULT_LANGUAGE,
     DOMAIN,
-    HEAT_CALL_DATA,
     LANGUAGE_AUTO,
     LANGUAGE_DA,
     LANGUAGE_EN,
 )
 from .coordinator import WavinCalefaCoordinator
-from .heat_call import WavinCalefaHeatCallManager
 
 
 UNSUPPORTED_SENSOR_KEYS_BY_DEVICE_TYPE: dict[int, set[str]] = {
@@ -1003,11 +1001,6 @@ async def async_setup_entry(
         WavinCalefaSensor(coordinator, entry, description)
         for description in _supported_sensors(coordinator)
     ]
-    heat_call: WavinCalefaHeatCallManager | None = hass.data.get(
-        HEAT_CALL_DATA, {}
-    ).get(entry.entry_id)
-    if heat_call is not None and heat_call.configured:
-        entities.append(WavinCalefaHeatCallStatusSensor(heat_call, coordinator, entry))
     auto_standby: WavinCalefaAutoStandbyManager | None = hass.data.get(
         AUTO_STANDBY_DATA, {}
     ).get(entry.entry_id)
@@ -1127,40 +1120,6 @@ class WavinCalefaSensor(
                 "Ikke officiel fjernvarmeafregning."
             )
         return attrs or None
-
-
-class WavinCalefaHeatCallStatusSensor(SensorEntity):
-    """Human-readable status for the optional Sentio-style heat-call feature."""
-
-    _attr_has_entity_name = True
-    _attr_icon = "mdi:radiator"
-
-    def __init__(
-        self,
-        heat_call: WavinCalefaHeatCallManager,
-        coordinator: WavinCalefaCoordinator,
-        entry: ConfigEntry,
-    ) -> None:
-        """Initialize the sensor."""
-        self._heat_call = heat_call
-        self._danish = _selected_language(coordinator.hass, entry) == LANGUAGE_DA
-        self._attr_unique_id = f"{entry.entry_id}_heat_call_status"
-        self._attr_name = "Varmekald status" if self._danish else "Heat call status"
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, entry.entry_id)},
-            name=entry.title,
-        )
-
-    async def async_added_to_hass(self) -> None:
-        """Subscribe to heat-call manager updates."""
-        self.async_on_remove(
-            self._heat_call.async_add_listener(self.async_write_ha_state)
-        )
-
-    @property
-    def native_value(self) -> str:
-        """Return the current status text."""
-        return self._heat_call.status_text(self._danish)
 
 
 class WavinCalefaAutoStandbyStatusSensor(SensorEntity):

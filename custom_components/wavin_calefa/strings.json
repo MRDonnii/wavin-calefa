@@ -25,7 +25,7 @@
     "step": {
       "init": {
         "title": "Wavin Calefa options",
-        "description": "Heat call lets a set of existing thermostats stand in for a physical Sentio room controller. When they show real, sustained heat demand, the integration temporarily raises Calefa's own summer-stop threshold - only when it's actually blocking heat right now - and engages the RUM temporary-room override, the same two things a real Sentio controller's demand would otherwise release. Everything reverts automatically once demand clears, data becomes invalid, or this is turned back off. Calefa's own regulation, safety limits and blocking logic are never bypassed. Leave heat call disabled if you have a physical Sentio controller.\n\nAutomatic standby shares the thermostats/rooms/valves configured above as its own demand signal and puts the whole unit into standby once every one of them is warm enough for long enough, releasing it again the moment real demand returns. It works independently of whether heat call itself is enabled, but needs at least one thermostat or sensor-room configured above.",
+        "description": "Configure a set of existing thermostats, sensor-only rooms, and valve/actuator entities as a shared heat-demand signal - purely read, never written to. Automatic standby uses this signal to put the whole unit into standby once every one of them is warm enough for long enough, releasing it again the moment real demand returns. It needs at least one thermostat or sensor-room configured below.",
         "data": {
           "name": "Name",
           "host": "IP address",
@@ -33,18 +33,13 @@
           "port": "Port (0 = auto)",
           "unit_id": "Modbus unit ID",
           "scan_interval": "Scan interval",
-          "heat_call_enabled": "Enable heat call",
           "heat_call_climate_entities": "Thermostats to monitor for heat demand",
           "heat_call_ac_entities": "AC/cooling entities that should suppress demand while actively cooling (optional)",
           "heat_call_sensor_rooms": "Rooms with no thermostat (one 'entity_id:target_temperature' per line, e.g. sensor.bathroom_temperature:22)",
           "heat_call_valve_entities": "Actuator entities that signal demand by opening, e.g. a ventilation unit's after-heater valve (optional)",
           "heat_call_valve_threshold": "Valve opening considered demand (%)",
           "heat_call_hysteresis": "Hysteresis (°C below target before demand starts)",
-          "heat_call_restart_delay_minutes": "Debounce before a first heat call starts (minutes)",
-          "heat_call_summer_stop_normal": "Normal summer-stop threshold (°C)",
-          "heat_call_summer_stop_override": "Summer-stop override while calling for heat (°C)",
-          "heat_call_room_target_temperature": "RUM override target temperature (°C)",
-          "heat_call_max_duration_minutes": "Safety limit: force-restart after this long (minutes)",
+          "heat_call_restart_delay_minutes": "How long real demand must hold before automatic standby releases (minutes)",
           "auto_standby_enabled": "Enable automatic standby",
           "auto_standby_delay_minutes": "How long everything must stay warm enough before standby engages (minutes)"
         }
