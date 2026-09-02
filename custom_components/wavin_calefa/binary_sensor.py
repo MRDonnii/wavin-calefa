@@ -22,13 +22,11 @@ from .const import (
     CONF_LANGUAGE,
     DEFAULT_LANGUAGE,
     DOMAIN,
-    HEAT_CALL_DATA,
     LANGUAGE_AUTO,
     LANGUAGE_DA,
     LANGUAGE_EN,
 )
 from .coordinator import WavinCalefaCoordinator
-from .heat_call import WavinCalefaHeatCallManager
 
 
 DEVICE_TYPE_NAMES = {2: "DHW-201 Calefa", 3: "Sentio"}
@@ -242,20 +240,6 @@ async def async_setup_entry(
         WavinCalefaBinarySensor(coordinator, entry, description)
         for description in BINARY_SENSORS
     ]
-    heat_call: WavinCalefaHeatCallManager | None = hass.data.get(
-        HEAT_CALL_DATA, {}
-    ).get(entry.entry_id)
-    if heat_call is not None and heat_call.configured:
-        entities.extend(
-            [
-                WavinCalefaHeatCallActiveSensor(heat_call, coordinator, entry),
-                WavinCalefaHeatCallFaultSensor(heat_call, coordinator, entry),
-                WavinCalefaHeatCallDataValidSensor(heat_call, coordinator, entry),
-                WavinCalefaHeatCallSummerStopBlockingSensor(
-                    heat_call, coordinator, entry
-                ),
-            ]
-        )
     auto_standby: WavinCalefaAutoStandbyManager | None = hass.data.get(
         AUTO_STANDBY_DATA, {}
     ).get(entry.entry_id)
@@ -308,140 +292,6 @@ class WavinCalefaBinarySensor(
         """Return true if the problem is active."""
         value = self.coordinator.data.get(self.entity_description.source_key)
         return bool(value) if value is not None else None
-
-
-class _WavinCalefaHeatCallBinarySensor(BinarySensorEntity):
-    """Base for binary sensors driven by the heat-call manager, not Modbus polling."""
-
-    _attr_has_entity_name = True
-
-    def __init__(
-        self,
-        heat_call: WavinCalefaHeatCallManager,
-        coordinator: WavinCalefaCoordinator,
-        entry: ConfigEntry,
-        key: str,
-        danish: str,
-        english: str,
-    ) -> None:
-        """Initialize the sensor."""
-        self._heat_call = heat_call
-        self._attr_unique_id = f"{entry.entry_id}_{key}"
-        selected_language = _selected_language(coordinator.hass, entry)
-        self._attr_name = danish if selected_language == LANGUAGE_DA else english
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, entry.entry_id)},
-            name=entry.title,
-            manufacturer="Wavin",
-            model=_device_model(coordinator),
-        )
-
-    async def async_added_to_hass(self) -> None:
-        """Subscribe to heat-call manager updates."""
-        self.async_on_remove(
-            self._heat_call.async_add_listener(self.async_write_ha_state)
-        )
-
-
-class WavinCalefaHeatCallActiveSensor(_WavinCalefaHeatCallBinarySensor):
-    """Whether a heat call is currently being held active."""
-
-    _attr_icon = "mdi:radiator"
-
-    def __init__(
-        self,
-        heat_call: WavinCalefaHeatCallManager,
-        coordinator: WavinCalefaCoordinator,
-        entry: ConfigEntry,
-    ) -> None:
-        """Initialize the sensor."""
-        super().__init__(
-            heat_call, coordinator, entry, "heat_call_active", "Varmekald i gang", "Heat call in progress"
-        )
-
-    @property
-    def is_on(self) -> bool:
-        """Return true while a heat call is active."""
-        return self._heat_call.call_active
-
-
-class WavinCalefaHeatCallFaultSensor(_WavinCalefaHeatCallBinarySensor):
-    """Whether the heat call has been active without a response for too long."""
-
-    _attr_device_class = BinarySensorDeviceClass.PROBLEM
-    _attr_icon = "mdi:alert-circle-outline"
-
-    def __init__(
-        self,
-        heat_call: WavinCalefaHeatCallManager,
-        coordinator: WavinCalefaCoordinator,
-        entry: ConfigEntry,
-    ) -> None:
-        """Initialize the sensor."""
-        super().__init__(
-            heat_call, coordinator, entry, "heat_call_fault", "Varmekald fejl", "Heat call fault"
-        )
-
-    @property
-    def is_on(self) -> bool:
-        """Return true if Calefa hasn't responded to an active call."""
-        return self._heat_call.fault
-
-
-class WavinCalefaHeatCallDataValidSensor(_WavinCalefaHeatCallBinarySensor):
-    """Whether the configured thermostats currently report usable data."""
-
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
-    _attr_icon = "mdi:check-network-outline"
-
-    def __init__(
-        self,
-        heat_call: WavinCalefaHeatCallManager,
-        coordinator: WavinCalefaCoordinator,
-        entry: ConfigEntry,
-    ) -> None:
-        """Initialize the sensor."""
-        super().__init__(
-            heat_call,
-            coordinator,
-            entry,
-            "heat_call_data_valid",
-            "Varmekald data gyldig",
-            "Heat call data valid",
-        )
-
-    @property
-    def is_on(self) -> bool:
-        """Return true if the configured thermostats report usable data."""
-        return self._heat_call.data_valid
-
-
-class WavinCalefaHeatCallSummerStopBlockingSensor(_WavinCalefaHeatCallBinarySensor):
-    """Whether summer-stop is what's currently blocking heat."""
-
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
-    _attr_icon = "mdi:sun-thermometer-outline"
-
-    def __init__(
-        self,
-        heat_call: WavinCalefaHeatCallManager,
-        coordinator: WavinCalefaCoordinator,
-        entry: ConfigEntry,
-    ) -> None:
-        """Initialize the sensor."""
-        super().__init__(
-            heat_call,
-            coordinator,
-            entry,
-            "heat_call_summer_stop_blocking",
-            "Sommerstop blokerer",
-            "Summer stop blocking",
-        )
-
-    @property
-    def is_on(self) -> bool:
-        """Return true if summer-stop is currently blocking heat."""
-        return self._heat_call.summer_stop_blocking
 
 
 class _WavinCalefaAutoStandbyBinarySensor(BinarySensorEntity):

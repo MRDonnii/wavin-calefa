@@ -7,9 +7,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
 from .auto_standby import WavinCalefaAutoStandbyManager
-from .const import AUTO_STANDBY_DATA, DOMAIN, HEAT_CALL_DATA, PLATFORMS
+from .const import AUTO_STANDBY_DATA, DEMAND_DATA, DOMAIN, PLATFORMS
 from .coordinator import WavinCalefaCoordinator
-from .heat_call import WavinCalefaHeatCallManager
+from .demand import WavinCalefaDemandTracker
 
 
 OBSOLETE_SENSOR_KEYS = {
@@ -64,10 +64,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
     await _async_remove_obsolete_entities(hass, entry)
 
-    heat_call = WavinCalefaHeatCallManager(hass, entry, coordinator)
-    hass.data.setdefault(HEAT_CALL_DATA, {})[entry.entry_id] = heat_call
+    demand = WavinCalefaDemandTracker(hass, entry)
+    hass.data.setdefault(DEMAND_DATA, {})[entry.entry_id] = demand
 
-    auto_standby = WavinCalefaAutoStandbyManager(hass, entry, coordinator, heat_call)
+    auto_standby = WavinCalefaAutoStandbyManager(hass, entry, coordinator, demand)
     hass.data.setdefault(AUTO_STANDBY_DATA, {})[entry.entry_id] = auto_standby
 
     # Reload once the options flow manager has actually applied new options
@@ -77,9 +77,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    # Restore runtime switches before either manager can act on the unit.
+    # Restore runtime switches before the manager can act on the unit.
     await auto_standby.async_setup()
-    await heat_call.async_setup()
     return True
 
 
@@ -93,11 +92,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id, None)
-        heat_call: WavinCalefaHeatCallManager | None = hass.data.get(
-            HEAT_CALL_DATA, {}
-        ).pop(entry.entry_id, None)
-        if heat_call is not None:
-            heat_call.async_unload()
+        hass.data.get(DEMAND_DATA, {}).pop(entry.entry_id, None)
         auto_standby: WavinCalefaAutoStandbyManager | None = hass.data.get(
             AUTO_STANDBY_DATA, {}
         ).pop(entry.entry_id, None)

@@ -2,6 +2,18 @@
 
 All notable changes to Wavin Calefa are documented in this file.
 
+## [0.7.0] - 2026-09-02
+
+### Removed
+
+- The optional "heat call" (Sentio emulation) feature, added in 0.4.0: on real demand it forced Calefa's RUM temporary-room override open with a configurable target temperature, as a stand-in for a physical Sentio room controller. In practice Calefa has no live per-room reading to modulate the CVV valve against once the override is engaged, so it always drove the valve fully open regardless of how small the actual deficit was - correct in that it reliably got heat moving, but blunt enough to measurably hurt afkoling for no proportionate benefit, and it could not be tuned away by lowering the override target. Removed rather than left in for others to hit the same ceiling. Its entities are gone: the "Heat call" switch, "Heat call status" sensor, and the "Heat call in progress" / "Heat call fault" / "Heat call data valid" / "Summer stop blocking" binary sensors.
+- The `heat_call_enabled`, `heat_call_room_target_temperature`, `heat_call_max_duration_minutes`, `heat_call_summer_stop_normal`, and `heat_call_summer_stop_override` options, along with the RUM-override Modbus registers they drove. Any stored values for these on an existing config entry are simply no longer read.
+
+### Changed
+
+- The demand-detection engine (thermostats, sensor-only rooms, valve/actuator entities, hysteresis) that heat call used is kept, since automatic standby depends on it for its own demand signal - it just no longer drives anything by itself. Internally this moved from `heat_call.py`'s `WavinCalefaHeatCallManager` to `demand.py`'s `WavinCalefaDemandTracker`, a much smaller class with no Modbus writes, no listeners, and no setup/teardown of its own. The `heat_call_climate_entities`, `heat_call_ac_entities`, `heat_call_sensor_rooms`, `heat_call_valve_entities`, `heat_call_valve_threshold`, `heat_call_hysteresis`, and `heat_call_restart_delay_minutes` options keep their existing string keys and values, so existing installations don't lose their configured rooms on upgrade - only the Python-side names changed.
+- Automatic standby no longer needs to special-case a heat call being active before engaging standby, since there's nothing left that could be active.
+
 ## [0.6.1] - 2026-09-01
 
 ### Fixed

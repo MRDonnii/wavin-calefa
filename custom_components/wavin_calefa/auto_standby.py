@@ -1,8 +1,8 @@
 """Optional automatic-standby feature for Wavin Calefa.
 
 Puts the whole Calefa unit into standby once every configured demand source
-(the same thermostats, sensor-only rooms, and valve entities the heat_call
-feature is configured with) is warm enough for long enough, then releases it
+(the same thermostats, sensor-only rooms, and valve entities the demand
+tracker is configured with) is warm enough for long enough, then releases it
 again the moment real demand returns or the underlying data becomes invalid.
 Standby is only ever engaged after confirming the unit's own pump call, pump
 status, and CVV valve position have actually settled - retried a few times
@@ -33,7 +33,7 @@ from .const import (
     REGISTER_STANDBY,
 )
 from .coordinator import WavinCalefaCoordinator
-from .heat_call import WavinCalefaHeatCallManager
+from .demand import WavinCalefaDemandTracker
 
 LOGGER = logging.getLogger(__name__)
 
@@ -46,18 +46,17 @@ class WavinCalefaAutoStandbyManager:
         hass: HomeAssistant,
         entry: ConfigEntry,
         coordinator: WavinCalefaCoordinator,
-        heat_call: WavinCalefaHeatCallManager,
+        demand: WavinCalefaDemandTracker,
     ) -> None:
         """Initialize the manager."""
         self.hass = hass
         self.entry = entry
         self.coordinator = coordinator
-        self._heat_call = heat_call
+        self._demand = demand
         self.runtime_enabled = True
         self._listeners: list[Callable[[], None]] = []
         self._unsub_state: Callable[[], None] | None = None
         self._unsub_coordinator: Callable[[], None] | None = None
-        self._unsub_heat_call: Callable[[], None] | None = None
         self._engaged = False
         self._evaluation_lock = asyncio.Lock()
         self._stopped = False
@@ -85,7 +84,7 @@ class WavinCalefaAutoStandbyManager:
         """Return whether the feature has been set up and has a demand signal."""
         return bool(
             self.options.get(CONF_AUTO_STANDBY_ENABLED, False)
-        ) and self._heat_call.has_demand_sources
+        ) and self._demand.has_demand_sources
 
     @property
     def active(self) -> bool:
@@ -114,16 +113,16 @@ class WavinCalefaAutoStandbyManager:
             update_callback()
 
     async def async_setup(self) -> None:
-        """Start watching the demand sources shared with heat_call."""
+        """Start watching the demand sources."""
         if not self.configured:
             return
         saved = await self._store.async_load()
         self._engaged = bool(saved and saved.get("engaged"))
         watched = [
-            *self._heat_call.climate_entities,
-            *self._heat_call.ac_entities,
-            *[entity_id for entity_id, _ in self._heat_call.sensor_rooms],
-            *self._heat_call.valve_entities,
+            *self._demand.climate_entities,
+            *self._demand.ac_entities,
+            *[entity_id for entity_id, _ in self._demand.sensor_rooms],
+            *self._demand.valve_entities,
         ]
         if watched:
             self._unsub_state = async_track_state_change_event(
@@ -131,9 +130,6 @@ class WavinCalefaAutoStandbyManager:
             )
         self._unsub_coordinator = self.coordinator.async_add_listener(
             self._handle_coordinator_update
-        )
-        self._unsub_heat_call = self._heat_call.async_add_listener(
-            self._handle_heat_call_update
         )
         await self._async_evaluate()
 
@@ -146,9 +142,6 @@ class WavinCalefaAutoStandbyManager:
         if self._unsub_coordinator is not None:
             self._unsub_coordinator()
             self._unsub_coordinator = None
-        if self._unsub_heat_call is not None:
-            self._unsub_heat_call()
-            self._unsub_heat_call = None
 
     @callback
     def _handle_state_event(self, event: Event) -> None:
@@ -156,9 +149,6 @@ class WavinCalefaAutoStandbyManager:
 
     @callback
     def _handle_coordinator_update(self) -> None:
-        self.hass.async_create_task(self._async_evaluate())
-
-    def _handle_heat_call_update(self) -> None:
         self.hass.async_create_task(self._async_evaluate())
 
     async def _async_evaluate(self) -> None:
@@ -176,8 +166,8 @@ class WavinCalefaAutoStandbyManager:
             self._set_public_state(False, False, False, False, False, False)
             return
 
-        valid_demand, demand = self._heat_call.evaluate_demand()
-        valid_warm, all_warm = self._heat_call.evaluate_all_warm()
+        valid_demand, demand = self._demand.evaluate_demand()
+        valid_warm, all_warm = self._demand.evaluate_all_warm()
         data_valid = valid_demand and valid_warm
 
         if not data_valid:
@@ -189,7 +179,7 @@ class WavinCalefaAutoStandbyManager:
             return
 
         if not self._engaged:
-            if not all_warm or demand or self._heat_call.call_active:
+            if not all_warm or demand:
                 self._warm_since = None
                 self._set_public_state(True, all_warm, demand, False, False, False)
                 return
@@ -222,7 +212,7 @@ class WavinCalefaAutoStandbyManager:
                 self._demand_since = time.time()
             if (
                 time.time() - self._demand_since
-                >= self._heat_call.restart_delay_minutes() * 60
+                >= self._demand.restart_delay_minutes() * 60
             ):
                 await self._async_release("varmebehov")
                 self._set_public_state(True, all_warm, demand, False, False, False)
