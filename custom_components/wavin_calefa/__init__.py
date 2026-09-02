@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
@@ -10,6 +12,56 @@ from .auto_standby import WavinCalefaAutoStandbyManager
 from .const import AUTO_STANDBY_DATA, DEMAND_DATA, DOMAIN, PLATFORMS
 from .coordinator import WavinCalefaCoordinator
 from .demand import WavinCalefaDemandTracker
+from .modbus import WavinCalefaClient, WavinCalefaError
+
+LOGGER = logging.getLogger(__name__)
+
+# Removed along with heat call in 0.7.0. Kept here, isolated, purely so
+# _async_migrate_stale_room_override below can release a temporary-room
+# override a pre-0.7.0 install may have left engaged on the unit - the
+# only code that ever cleared it was removed with the feature, so on its
+# own it would otherwise sit engaged (CVV driven fully open) forever.
+_LEGACY_ROOM_TEMPORARY_MODE_REGISTER = 7509
+# Options that only ever drove that removed override; no longer read by
+# any code, but worth dropping from storage on upgrade rather than
+# leaving them behind as dead weight on the entry.
+_LEGACY_HEAT_CALL_OPTION_KEYS = (
+    "heat_call_enabled",
+    "heat_call_room_target_temperature",
+    "heat_call_max_duration_minutes",
+    "heat_call_summer_stop_normal",
+    "heat_call_summer_stop_override",
+)
+
+
+async def _async_migrate_stale_room_override(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Best-effort release of a temporary-room override left by pre-0.7.0 heat call."""
+    client = WavinCalefaClient(host=entry.data["host"], port=entry.data["port"], unit_id=entry.data["unit_id"])
+    try:
+        await hass.async_add_executor_job(
+            client.write_register, _LEGACY_ROOM_TEMPORARY_MODE_REGISTER, 0
+        )
+    except WavinCalefaError:
+        LOGGER.warning(
+            "Wavin Calefa: could not release a possible stale temporary-room "
+            "override while migrating from a pre-0.7.0 version - if the unit "
+            "was left with the CVV valve fully open after this update, turn "
+            "off '%s · RUM Midl. mode' by hand once.",
+            entry.title,
+        )
+
+
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Migrate an older config entry."""
+    if entry.version < 2:
+        await _async_migrate_stale_room_override(hass, entry)
+        new_options = {
+            key: value
+            for key, value in entry.options.items()
+            if key not in _LEGACY_HEAT_CALL_OPTION_KEYS
+        }
+        hass.config_entries.async_update_entry(entry, options=new_options, version=2)
+    return True
 
 
 OBSOLETE_SENSOR_KEYS = {

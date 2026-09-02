@@ -215,7 +215,7 @@ def _find_port(host: str, requested_port: int, unit_id: int) -> int | None:
 class WavinCalefaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Wavin Calefa."""
 
-    VERSION = 1
+    VERSION = 2
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
