@@ -176,6 +176,35 @@ class Controls(unittest.IsolatedAsyncioTestCase):
         await asyncio.gather(*(manager._async_evaluate() for _ in range(20)))
         self.assertEqual(self.coordinator.async_write_holding_register.await_count, 1)
 
+    async def test_settled_heating_circuit_skips_warm_delay(self):
+        self.demand.evaluate_demand = lambda: (True, False)
+        self.demand.evaluate_all_warm = lambda: (True, True)
+        self.entry.options['auto_standby_delay_minutes'] = 15
+        self.coordinator.data.update(
+            standby=0, itc_pump_demand=0, itc_pump_status=0,
+            cvv_valve_position=0.0)
+        manager = Standby(SimpleNamespace(), self.entry, self.coordinator, self.demand)
+
+        await manager._async_evaluate()
+
+        self.coordinator.async_write_holding_register.assert_awaited_once_with(26, 1)
+        self.assertTrue(manager._engaged)
+
+    async def test_running_heating_circuit_keeps_warm_delay(self):
+        self.demand.evaluate_demand = lambda: (True, False)
+        self.demand.evaluate_all_warm = lambda: (True, True)
+        self.entry.options['auto_standby_delay_minutes'] = 15
+        self.coordinator.data.update(
+            standby=0, itc_pump_demand=1, itc_pump_status=1,
+            cvv_valve_position=8.0)
+        manager = Standby(SimpleNamespace(), self.entry, self.coordinator, self.demand)
+
+        await manager._async_evaluate()
+
+        self.coordinator.async_write_holding_register.assert_not_awaited()
+        self.assertIsNotNone(manager._warm_since)
+        self.assertFalse(manager._engaged)
+
     async def test_missing_standby_read_does_not_forget_ownership(self):
         manager = Standby(SimpleNamespace(), self.entry, self.coordinator, self.demand)
         await manager._async_engage()

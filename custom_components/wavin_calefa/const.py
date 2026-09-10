@@ -81,8 +81,8 @@ DEFAULT_AUTO_STANDBY_DELAY_MINUTES = 15
 # Fixed (non-configurable) pump-stop confirmation behaviour after engaging
 # standby: retried this many times, this many seconds apart, before the
 # feature reports a fault instead of silently holding standby unconfirmed.
-# Calefa can keep the physical pump running for roughly 100 seconds after
-# demand and valve have closed. Six retries give that normal overrun time to
-# finish before reporting a fault (fault after about 140 seconds).
-AUTO_STANDBY_PUMPSTOP_RETRY_COUNT = 6
+# Calefa can keep the physical pump running for several minutes after demand
+# and valve have closed. Allow a full five-minute overrun before reporting a
+# fault, so a healthy but slow stop is not presented as an installation fault.
+AUTO_STANDBY_PUMPSTOP_RETRY_COUNT = 15
 AUTO_STANDBY_PUMPSTOP_RETRY_DELAY_SECONDS = 20
