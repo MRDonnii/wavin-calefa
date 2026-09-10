@@ -124,6 +124,11 @@ class WavinCalefaAutoStandbyManager:
             *self._demand.climate_entities,
             *self._demand.ac_entities,
             *[entity_id for entity_id, _ in self._demand.sensor_rooms],
+            *[
+                target
+                for _, target in self._demand.sensor_rooms
+                if isinstance(target, str)
+            ],
             *self._demand.valve_entities,
         ]
         if watched:

@@ -2,6 +2,15 @@
 
 All notable changes to Wavin Calefa are documented in this file.
 
+## [0.7.4] - 2026-09-10
+
+### Added
+
+- Sensor-only rooms can now use an `input_number` entity as their target
+  instead of a fixed number. Target changes are watched live and fail safe if
+  the helper becomes unavailable, allowing house modes to change bathroom
+  targets without reloading the integration.
+
 ## [0.7.3] - 2026-09-10
 
 ### Fixed

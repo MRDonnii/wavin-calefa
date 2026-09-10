@@ -247,6 +247,38 @@ class Controls(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(tracker.evaluate_demand(), (True, True))
         self.assertEqual(tracker.evaluate_all_warm(), (True, False))
 
+    async def test_sensor_room_target_can_follow_input_number(self):
+        self.entry.options['heat_call_climate_entities'] = []
+        self.entry.options['heat_call_sensor_rooms'] = (
+            'sensor.bathroom:input_number.bathroom_target'
+        )
+        states = {
+            'sensor.bathroom': SimpleNamespace(state='20.2'),
+            'input_number.bathroom_target': SimpleNamespace(state='20'),
+        }
+        tracker = Demand(SimpleNamespace(states=states), self.entry)
+        self.assertEqual(tracker.sensor_rooms, [
+            ('sensor.bathroom', 'input_number.bathroom_target')
+        ])
+        self.assertEqual(tracker.evaluate_demand(), (True, False))
+        self.assertEqual(tracker.evaluate_all_warm(), (True, True))
+
+        states['input_number.bathroom_target'].state = '22'
+        self.assertEqual(tracker.evaluate_demand(), (True, True))
+        self.assertEqual(tracker.evaluate_all_warm(), (True, False))
+
+    async def test_unavailable_sensor_room_target_fails_safe(self):
+        self.entry.options['heat_call_climate_entities'] = []
+        self.entry.options['heat_call_sensor_rooms'] = (
+            'sensor.bathroom:input_number.bathroom_target'
+        )
+        tracker = Demand(SimpleNamespace(states={
+            'sensor.bathroom': SimpleNamespace(state='21'),
+            'input_number.bathroom_target': SimpleNamespace(state='unavailable'),
+        }), self.entry)
+        self.assertEqual(tracker.evaluate_demand(), (False, False))
+        self.assertEqual(tracker.evaluate_all_warm(), (False, True))
+
 
 if __name__ == '__main__':
     unittest.main()

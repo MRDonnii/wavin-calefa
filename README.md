@@ -68,7 +68,7 @@ Puts the **whole Calefa unit into standby** once every configured thermostat/sen
 Three kinds of demand source can be combined:
 
 - **Thermostats** (`climate` entities) - compared against their own current/target temperature.
-- **Sensor-only rooms** - for spaces with no thermostat at all (e.g. floor heating on a plain sensor): one `entity_id:target_temperature` per line, compared against a plain temperature sensor's state with the same hysteresis as the thermostats.
+- **Sensor-only rooms** - for spaces with no thermostat at all (e.g. floor heating on a plain sensor): one `sensor_entity:target` per line. The target can be a fixed temperature or an `input_number` entity, allowing a house/vacation mode to change the target live.
 - **Valve/actuator entities** - for demand sources with no temperature-vs-target concept, such as a ventilation unit's water-coil after-heater: demand is signalled by the reported opening percentage crossing a configurable threshold. These are treated as best-effort - an unavailable valve sensor never blocks demand detection for everything else.
 
 These sources are only ever read - nothing about Calefa's own regulation is written to or bypassed.
@@ -79,7 +79,7 @@ Before actually engaging standby, and again after, it confirms the unit's own pu
 
 1. Go to **Settings > Devices & services > Wavin Calefa > Configure**.
 2. Configure at least one thermostat or sensor-only room as a demand source (automatic standby needs that as its demand signal), and optionally pick AC/cooling entities that should suppress demand while actively cooling.
-3. Optionally add sensor-only rooms (one `entity_id:target_temperature` per line) and valve/actuator entities for demand sources with no thermostat.
+3. Optionally add sensor-only rooms (one `sensor_entity:target` per line, for example `sensor.bathroom_temperature:input_number.bathroom_target`) and valve/actuator entities for demand sources with no thermostat.
 4. Enable automatic standby and adjust the hysteresis, debounce, and how long everything must stay warm before it engages, if the defaults don't suit your installation.
 
 This adds a few more entities under the Calefa device:

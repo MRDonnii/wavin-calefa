@@ -35,7 +35,7 @@
           "scan_interval": "Opdateringsinterval",
           "heat_call_climate_entities": "Termostater der overvåges for varmebehov",
           "heat_call_ac_entities": "AC/køleenheder der skal undertrykke behov, mens de aktivt køler (valgfri)",
-          "heat_call_sensor_rooms": "Rum uden termostat (én 'entity_id:måltemperatur' pr. linje, f.eks. sensor.badevaerelse_temperatur:22)",
+          "heat_call_sensor_rooms": "Rum uden termostat (én 'sensor:mål' pr. linje; mål kan være en temperatur eller input_number-entity)",
           "heat_call_valve_entities": "Aktuator-enheder der signalerer behov ved at åbne, f.eks. en ventilationsenheds eftervarme-ventil (valgfri)",
           "heat_call_valve_threshold": "Ventilåbning der regnes som behov (%)",
           "heat_call_hysteresis": "Hysterese (°C under mål før behov starter)",
