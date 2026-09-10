@@ -65,21 +65,35 @@ class WavinCalefaDemandTracker:
         return list(self.options.get(CONF_DEMAND_VALVE_ENTITIES, []))
 
     @property
-    def sensor_rooms(self) -> list[tuple[str, float]]:
-        """Parse 'entity_id:target_temperature' lines for thermostat-less rooms."""
+    def sensor_rooms(self) -> list[tuple[str, float | str]]:
+        """Parse sensor rooms with a numeric or entity-backed target."""
         raw = self.options.get(CONF_DEMAND_SENSOR_ROOMS, "")
-        rooms: list[tuple[str, float]] = []
+        rooms: list[tuple[str, float | str]] = []
         for line in str(raw).splitlines():
             line = line.strip()
             if not line or ":" not in line:
                 continue
             entity_id, _, target_text = line.partition(":")
             try:
-                target = float(target_text.strip())
+                target: float | str = float(target_text.strip())
             except ValueError:
-                continue
+                target = target_text.strip()
+                if "." not in target:
+                    continue
             rooms.append((entity_id.strip(), target))
         return rooms
+
+    def _sensor_room_target(self, target: float | str) -> float | None:
+        """Resolve a sensor-room target, including an input_number entity."""
+        if isinstance(target, (int, float)):
+            return float(target)
+        state = self.hass.states.get(target)
+        if state is None or state.state in ("unknown", "unavailable"):
+            return None
+        try:
+            return float(state.state)
+        except ValueError:
+            return None
 
     @property
     def has_demand_sources(self) -> bool:
@@ -151,9 +165,13 @@ class WavinCalefaDemandTracker:
             ):
                 demand = True
 
-        for entity_id, target in sensor_rooms:
+        for entity_id, target_source in sensor_rooms:
             state = self.hass.states.get(entity_id)
+            target = self._sensor_room_target(target_source)
             if state is None or state.state in ("unknown", "unavailable"):
+                valid = False
+                continue
+            if target is None:
                 valid = False
                 continue
             try:
@@ -223,9 +241,13 @@ class WavinCalefaDemandTracker:
             if current < target or state.attributes.get("hvac_action") == "heating":
                 warm = False
 
-        for entity_id, target in sensor_rooms:
+        for entity_id, target_source in sensor_rooms:
             state = self.hass.states.get(entity_id)
+            target = self._sensor_room_target(target_source)
             if state is None or state.state in ("unknown", "unavailable"):
+                valid = False
+                continue
+            if target is None:
                 valid = False
                 continue
             try:

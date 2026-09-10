@@ -35,7 +35,7 @@
           "scan_interval": "Scan interval",
           "heat_call_climate_entities": "Thermostats to monitor for heat demand",
           "heat_call_ac_entities": "AC/cooling entities that should suppress demand while actively cooling (optional)",
-          "heat_call_sensor_rooms": "Rooms with no thermostat (one 'entity_id:target_temperature' per line, e.g. sensor.bathroom_temperature:22)",
+          "heat_call_sensor_rooms": "Rooms with no thermostat (one 'sensor:target' per line; target may be a temperature or input_number entity)",
           "heat_call_valve_entities": "Actuator entities that signal demand by opening, e.g. a ventilation unit's after-heater valve (optional)",
           "heat_call_valve_threshold": "Valve opening considered demand (%)",
           "heat_call_hysteresis": "Hysteresis (°C below target before demand starts)",
