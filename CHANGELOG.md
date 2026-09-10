@@ -2,6 +2,20 @@
 
 All notable changes to Wavin Calefa are documented in this file.
 
+## [0.7.3] - 2026-09-10
+
+### Fixed
+
+- Pump-stop confirmation now allows up to five minutes of normal Calefa pump
+  overrun before reporting a fault. This avoids the brief false pump-stop fault
+  seen when the pump stopped just after the previous retry window expired.
+
+### Changed
+
+- When every configured room is warm and the pump call, physical pump, and CVV
+  valve are already stopped, automatic standby engages immediately. The normal
+  warm-room delay still applies while the heating circuit is winding down.
+
 ## [0.7.2] - 2026-09-10
 
 ### Fixed

@@ -196,6 +196,14 @@ class WavinCalefaAutoStandbyManager:
                 self._warm_since = None
                 self._set_public_state(True, all_warm, demand, False, False, False)
                 return
+            # The warm-room delay prevents standby while the heating circuit
+            # is still winding down. If pump call, physical pump and CVV valve
+            # are already stopped, there is nothing left to protect with that
+            # delay and standby can be engaged immediately.
+            if self._pumpstop_safe():
+                await self._async_engage()
+                self._set_public_state(True, all_warm, demand, True, False, False)
+                return
             if self._warm_since is None:
                 self._warm_since = time.time()
             if time.time() - self._warm_since < self._delay_minutes() * 60:
