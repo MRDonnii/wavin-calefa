@@ -72,11 +72,90 @@ class Controls(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(second._engaged)
         self.assertFalse((await second._store.async_load())['engaged'])
 
-    async def test_unowned_standby_is_not_released(self):
+    async def test_unowned_standby_is_released_for_real_demand(self):
         self.coordinator.data['standby'] = 1
         manager = Standby(SimpleNamespace(), self.entry, self.coordinator, self.demand)
         await manager.async_setup()
-        self.coordinator.async_write_holding_register.assert_not_awaited()
+        self.coordinator.async_write_holding_register.assert_awaited_with(26, 0)
+
+    async def test_not_all_warm_releases_owned_standby_immediately(self):
+        self.entry.options['heat_call_restart_delay_minutes'] = 30
+        self.demand.evaluate_demand = lambda: (True, False)
+        self.demand.evaluate_all_warm = lambda: (True, False)
+        manager = Standby(SimpleNamespace(), self.entry, self.coordinator, self.demand)
+        await manager._async_engage()
+        self.coordinator.data['standby'] = 1
+        self.coordinator.async_write_holding_register.reset_mock()
+        await manager._async_evaluate()
+        self.coordinator.async_write_holding_register.assert_awaited_once_with(26, 0)
+        self.assertFalse(manager._engaged)
+
+    async def test_near_target_radiator_breaks_standby_without_debounce(self):
+        """A room inside the hysteresis band still needs standby released."""
+        self.entry.options.update({
+            'heat_call_hysteresis': 0.5,
+            'heat_call_restart_delay_minutes': 30,
+        })
+        tracker = Demand(SimpleNamespace(states={
+            'climate.test': SimpleNamespace(
+                state='heat', attributes={
+                    'current_temperature': 21.7,
+                    'temperature': 22.0,
+                    'hvac_action': 'idle',
+                }),
+        }), self.entry)
+        self.assertEqual(tracker.evaluate_demand(), (True, False))
+        self.assertEqual(tracker.evaluate_all_warm(), (True, False))
+
+        manager = Standby(SimpleNamespace(), self.entry, self.coordinator, tracker)
+        await manager._async_engage()
+        self.coordinator.data['standby'] = 1
+        self.coordinator.async_write_holding_register.reset_mock()
+        await manager._async_evaluate()
+        self.coordinator.async_write_holding_register.assert_awaited_once_with(26, 0)
+        self.assertFalse(manager._engaged)
+
+    async def test_valve_demand_releases_standby_without_restart_delay(self):
+        self.entry.options.update({
+            'heat_call_climate_entities': [],
+            'heat_call_valve_entities': ['binary_sensor.radiator_valve'],
+            'heat_call_restart_delay_minutes': 30,
+        })
+        tracker = Demand(SimpleNamespace(states={
+            'binary_sensor.radiator_valve': SimpleNamespace(state='on'),
+        }), self.entry)
+        manager = Standby(SimpleNamespace(), self.entry, self.coordinator, tracker)
+        await manager._async_engage()
+        self.coordinator.data['standby'] = 1
+        self.coordinator.async_write_holding_register.reset_mock()
+        await manager._async_evaluate()
+        self.coordinator.async_write_holding_register.assert_awaited_once_with(26, 0)
+
+    async def test_valve_only_configuration_is_a_demand_source(self):
+        self.entry.options.update({
+            'heat_call_climate_entities': [],
+            'heat_call_valve_entities': ['sensor.radiator_valve'],
+        })
+        tracker = Demand(SimpleNamespace(states={
+            'sensor.radiator_valve': SimpleNamespace(state='35'),
+        }), self.entry)
+        self.assertTrue(tracker.has_demand_sources)
+        self.assertEqual(tracker.evaluate_demand(), (True, True))
+        self.assertEqual(tracker.evaluate_all_warm(), (True, False))
+
+    async def test_unavailable_configured_valve_invalidates_standby_data(self):
+        self.entry.options['heat_call_valve_entities'] = ['sensor.radiator_valve']
+        tracker = Demand(SimpleNamespace(states={
+            'climate.test': SimpleNamespace(
+                state='heat', attributes={
+                    'current_temperature': 22.0,
+                    'temperature': 22.0,
+                    'hvac_action': 'idle',
+                }),
+            'sensor.radiator_valve': SimpleNamespace(state='unavailable'),
+        }), self.entry)
+        self.assertEqual(tracker.evaluate_demand(), (False, False))
+        self.assertEqual(tracker.evaluate_all_warm(), (False, True))
 
     async def test_manual_choice_clears_saved_ownership(self):
         manager = Standby(SimpleNamespace(), self.entry, self.coordinator, self.demand)
@@ -132,12 +211,12 @@ class Controls(unittest.IsolatedAsyncioTestCase):
         self.entry.options['heat_call_climate_entities'] = []
         self.entry.options['heat_call_valve_entities'] = ['binary_sensor.afterheat']
         self.entry.options['heat_call_sensor_rooms'] = 'sensor.room:22'
-        self.demand.hass = SimpleNamespace(states={
+        tracker = Demand(SimpleNamespace(states={
             'binary_sensor.afterheat': SimpleNamespace(state='on'),
             'sensor.room': SimpleNamespace(state='23'),
-        })
-        self.assertEqual(self.demand.evaluate_demand(), (True, True))
-        self.assertEqual(self.demand.evaluate_all_warm(), (True, False))
+        }), self.entry)
+        self.assertEqual(tracker.evaluate_demand(), (True, True))
+        self.assertEqual(tracker.evaluate_all_warm(), (True, False))
 
 
 if __name__ == '__main__':

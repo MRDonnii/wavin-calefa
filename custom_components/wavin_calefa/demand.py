@@ -88,7 +88,7 @@ class WavinCalefaDemandTracker:
         Used by the auto-standby feature to decide whether it has a demand
         signal to work from at all.
         """
-        return bool(self.climate_entities or self.sensor_rooms)
+        return bool(self.climate_entities or self.sensor_rooms or self.valve_entities)
 
     def _valve_threshold(self) -> float:
         return float(
@@ -99,7 +99,11 @@ class WavinCalefaDemandTracker:
         return float(self.options.get(CONF_DEMAND_HYSTERESIS, DEFAULT_DEMAND_HYSTERESIS))
 
     def restart_delay_minutes(self) -> float:
-        """Return how long demand must hold before auto-standby releases standby."""
+        """Return the retained legacy restart-delay option.
+
+        Automatic standby deliberately does not use this value: a valid heat
+        request must release standby immediately.
+        """
         return float(
             self.options.get(
                 CONF_DEMAND_RESTART_DELAY_MINUTES,
@@ -119,7 +123,8 @@ class WavinCalefaDemandTracker:
         """Return (data_valid, demand) across thermostats, sensor rooms, and valves."""
         climate_entities = self.climate_entities
         sensor_rooms = self.sensor_rooms
-        if not climate_entities and not sensor_rooms:
+        valve_entities = self.valve_entities
+        if not climate_entities and not sensor_rooms and not valve_entities:
             return False, False
         hysteresis = self._hysteresis()
         cooling = self._cooling_active()
@@ -159,22 +164,24 @@ class WavinCalefaDemandTracker:
             if current <= target - hysteresis:
                 demand = True
 
-        # Valve-driven sources (e.g. a ventilation unit's water-coil
-        # after-heater) are best-effort: unlike thermostats and sensor
-        # rooms, their absence or unavailability never invalidates data for
-        # everything else, since an actuator reading tends to be flakier
-        # than a thermostat or plain temperature sensor.
+        # A configured actuator is a safety-critical demand source. If it
+        # cannot be read, automatic standby must fail open rather than risk
+        # blocking heat while the physical valve is open.
         threshold = self._valve_threshold()
-        for entity_id in self.valve_entities:
+        for entity_id in valve_entities:
             state = self.hass.states.get(entity_id)
-            if state is None:
+            if state is None or state.state in ("unknown", "unavailable"):
+                valid = False
                 continue
             if state.state == "on":
                 demand = True
                 continue
+            if state.state == "off":
+                continue
             try:
                 opening = float(state.state)
             except ValueError:
+                valid = False
                 continue
             if opening > threshold:
                 demand = True
@@ -192,7 +199,8 @@ class WavinCalefaDemandTracker:
         """
         climate_entities = self.climate_entities
         sensor_rooms = self.sensor_rooms
-        if not climate_entities and not sensor_rooms:
+        valve_entities = self.valve_entities
+        if not climate_entities and not sensor_rooms and not valve_entities:
             return False, False
         cooling = self._cooling_active()
         valid = True
@@ -228,19 +236,23 @@ class WavinCalefaDemandTracker:
             if current < target:
                 warm = False
 
-        # Same best-effort treatment as evaluate_demand(): an unavailable
-        # valve sensor never invalidates data for everything else.
+        # Same fail-open treatment as evaluate_demand(): an unreadable
+        # configured valve makes the complete standby decision invalid.
         threshold = self._valve_threshold()
-        for entity_id in self.valve_entities:
+        for entity_id in valve_entities:
             state = self.hass.states.get(entity_id)
-            if state is None:
+            if state is None or state.state in ("unknown", "unavailable"):
+                valid = False
                 continue
             if state.state == "on":
                 warm = False
                 continue
+            if state.state == "off":
+                continue
             try:
                 opening = float(state.state)
             except ValueError:
+                valid = False
                 continue
             if opening > threshold:
                 warm = False
