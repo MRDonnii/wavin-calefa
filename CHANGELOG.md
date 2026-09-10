@@ -2,6 +2,27 @@
 
 All notable changes to Wavin Calefa are documented in this file.
 
+## [0.7.2] - 2026-09-10
+
+### Fixed
+
+- A valid radiator heat request now releases Calefa standby immediately,
+  including when the room is below target but still inside the configured
+  hysteresis band. The legacy restart delay can no longer strand a request in
+  standby for up to 30 minutes.
+- Valve-only demand configurations are now accepted and count as real demand
+  sources.
+- A configured valve entity that is missing or unavailable now fails safe by
+  releasing automatically owned standby instead of being ignored.
+- A stale or restored standby without saved automation ownership is released
+  whenever valid heat demand is present.
+
+### Changed
+
+- Automatic standby follows a strict safety rule: valid heat demand always
+  wins. Turn Auto Standby off before deliberately placing the Calefa unit in
+  service standby.
+
 ## [0.7.1] - 2026-09-02
 
 ### Fixed

@@ -3,7 +3,9 @@
 Puts the whole Calefa unit into standby once every configured demand source
 (the same thermostats, sensor-only rooms, and valve entities the demand
 tracker is configured with) is warm enough for long enough, then releases it
-again the moment real demand returns or the underlying data becomes invalid.
+again the moment any source is below target, actively heating/open, or the
+underlying data becomes invalid. Releasing standby is never debounced: heat
+always wins immediately.
 Standby is only ever engaged after confirming the unit's own pump call, pump
 status, and CVV valve position have actually settled - retried a few times
 before giving up and reporting a fault instead of holding an unconfirmed
@@ -178,6 +180,17 @@ class WavinCalefaAutoStandbyManager:
             self._set_public_state(False, False, False, False, False, False)
             return
 
+        # Heat always wins over automatic standby. ``all_warm`` deliberately
+        # has no hysteresis, so it also catches a radiator beginning to open
+        # in the band between target and target-hysteresis. Do this before
+        # the ownership branches: after a restart or lost Store state, a
+        # stale standby must not block a real, valid heat request forever.
+        needs_heat = demand or not all_warm
+        if self.coordinator.data.get("standby") == 1 and needs_heat:
+            await self._async_release("varmebehov")
+            self._set_public_state(True, all_warm, demand, False, False, False)
+            return
+
         if not self._engaged:
             if not all_warm or demand:
                 self._warm_since = None
@@ -207,18 +220,7 @@ class WavinCalefaAutoStandbyManager:
             self._set_public_state(True, all_warm, demand, False, False, False)
             return
 
-        if demand:
-            if self._demand_since is None:
-                self._demand_since = time.time()
-            if (
-                time.time() - self._demand_since
-                >= self._demand.restart_delay_minutes() * 60
-            ):
-                await self._async_release("varmebehov")
-                self._set_public_state(True, all_warm, demand, False, False, False)
-                return
-        else:
-            self._demand_since = None
+        self._demand_since = None
 
         await self._async_check_pumpstop_safe()
         self._set_public_state(
