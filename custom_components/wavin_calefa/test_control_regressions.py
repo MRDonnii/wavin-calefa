@@ -279,6 +279,22 @@ class Controls(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(tracker.evaluate_demand(), (False, False))
         self.assertEqual(tracker.evaluate_all_warm(), (False, True))
 
+    async def test_waiting_and_pumpstop_countdowns_are_bounded(self):
+        manager = Standby(SimpleNamespace(), self.entry, self.coordinator, self.demand)
+        manager.runtime_enabled = True
+        manager.data_valid = True
+        manager.all_warm = True
+        manager.demand = False
+        manager._warm_since = __import__('time').time() - 60
+        self.entry.options['auto_standby_delay_minutes'] = 15
+        self.assertTrue(839 <= manager.warm_delay_remaining_seconds() <= 840)
+        self.assertIn('nedtællingen', manager.status_description(True))
+
+        manager.standby_engaged = True
+        manager._pumpstop_started_at = __import__('time').time() - 60
+        self.assertTrue(239 <= manager.pumpstop_remaining_seconds() <= 240)
+        self.assertIn('Venter på', manager.status_description(True))
+
 
 if __name__ == '__main__':
     unittest.main()

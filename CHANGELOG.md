@@ -2,6 +2,15 @@
 
 All notable changes to Wavin Calefa are documented in this file.
 
+## [0.7.5] - 2026-09-10
+
+### Added
+
+- The automatic-standby status sensor now exposes live `MM:SS` countdown,
+  phase explanation, room-demand state, pump call/status, valve position and
+  pump-stop confirmation progress. The public status state remains
+  low-cardinality for clean history.
+
 ## [0.7.4] - 2026-09-10
 
 ### Added
