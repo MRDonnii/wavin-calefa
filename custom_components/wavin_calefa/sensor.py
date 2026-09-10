@@ -1156,3 +1156,26 @@ class WavinCalefaAutoStandbyStatusSensor(SensorEntity):
     def native_value(self) -> str:
         """Return the current status text."""
         return self._auto_standby.status_text(self._danish)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, object]:
+        """Expose a low-cardinality phase plus live countdown details."""
+        waiting = self._auto_standby.warm_delay_remaining_seconds()
+        confirming = self._auto_standby.pumpstop_remaining_seconds()
+        remaining = waiting if waiting is not None else confirming
+        countdown = None
+        if remaining is not None:
+            countdown = f"{remaining // 60:02d}:{remaining % 60:02d}"
+        return {
+            "phase": self.native_value,
+            "description": self._auto_standby.status_description(self._danish),
+            "countdown": countdown,
+            "remaining_seconds": remaining,
+            "configured_delay_minutes": self._auto_standby._delay_minutes(),
+            "all_rooms_warm": self._auto_standby.all_warm,
+            "heat_demand": self._auto_standby.demand,
+            "pump_call": self._auto_standby.coordinator.data.get("itc_pump_demand"),
+            "pump_running": self._auto_standby.coordinator.data.get("itc_pump_status"),
+            "heating_valve_position": self._auto_standby.coordinator.data.get("cvv_valve_position"),
+            "confirmation_attempts": self._auto_standby._pumpstop_attempts,
+        }

@@ -18,6 +18,7 @@ from __future__ import annotations
 from collections.abc import Callable
 import asyncio
 import logging
+import math
 import time
 from typing import Any
 
@@ -69,6 +70,7 @@ class WavinCalefaAutoStandbyManager:
         self._pumpstop_error = False
         self._pumpstop_attempts = 0
         self._pumpstop_next_retry_at: float | None = None
+        self._pumpstop_started_at: float | None = None
         self.data_valid = False
         self.all_warm = False
         self.demand = False
@@ -263,8 +265,45 @@ class WavinCalefaAutoStandbyManager:
         self.standby_engaged = standby_engaged
         self.pumpstop_confirmed = pumpstop_confirmed
         self.fault = fault
-        if changed:
+        countdown_active = (
+            data_valid
+            and (
+                (all_warm and not demand and not standby_engaged)
+                or (standby_engaged and not pumpstop_confirmed)
+            )
+        )
+        if changed or countdown_active:
             self._notify_listeners()
+
+    def warm_delay_remaining_seconds(self) -> int | None:
+        """Return seconds until standby may engage, while all rooms stay warm."""
+        if (
+            not self.active
+            or not self.data_valid
+            or not self.all_warm
+            or self.demand
+            or self.standby_engaged
+            or self._warm_since is None
+        ):
+            return None
+        return max(
+            0,
+            math.ceil(self._delay_minutes() * 60 - (time.time() - self._warm_since)),
+        )
+
+    def pumpstop_remaining_seconds(self) -> int | None:
+        """Return the remaining pump-overrun confirmation window."""
+        if (
+            not self.standby_engaged
+            or self.pumpstop_confirmed
+            or self._pumpstop_started_at is None
+        ):
+            return None
+        window = (
+            AUTO_STANDBY_PUMPSTOP_RETRY_COUNT
+            * AUTO_STANDBY_PUMPSTOP_RETRY_DELAY_SECONDS
+        )
+        return max(0, math.ceil(window - (time.time() - self._pumpstop_started_at)))
 
     def _pumpstop_safe(self) -> bool | None:
         """Return whether the pump call/status/valve confirm standby actually took, or None if not known yet."""
@@ -281,6 +320,8 @@ class WavinCalefaAutoStandbyManager:
 
     async def _async_check_pumpstop_safe(self) -> None:
         """Confirm the pump has actually stopped, retrying standby a few times if not."""
+        if self._pumpstop_started_at is None:
+            self._pumpstop_started_at = time.time()
         if self._pumpstop_confirmed:
             return
         safe = self._pumpstop_safe()
@@ -321,6 +362,7 @@ class WavinCalefaAutoStandbyManager:
         self._pumpstop_confirmed = False
         self._pumpstop_error = False
         self._pumpstop_attempts = 0
+        self._pumpstop_started_at = time.time()
         self._pumpstop_next_retry_at = (
             time.time() + AUTO_STANDBY_PUMPSTOP_RETRY_DELAY_SECONDS
         )
@@ -347,6 +389,25 @@ class WavinCalefaAutoStandbyManager:
         self._pumpstop_error = False
         self._pumpstop_attempts = 0
         self._pumpstop_next_retry_at = None
+        self._pumpstop_started_at = None
+
+    def status_description(self, danish: bool) -> str:
+        """Explain the current automatic-standby phase."""
+        if not self.configured:
+            return "Auto standby er ikke konfigureret." if danish else "Automatic standby is not configured."
+        if not self.runtime_enabled:
+            return "Auto standby er sat på pause." if danish else "Automatic standby is paused."
+        if not self.data_valid:
+            return "Manglende rumdata frigiver standby af sikkerhedshensyn." if danish else "Missing room data releases standby for safety."
+        if self.fault:
+            return "Standby er sendt, men pumpestop blev ikke bekræftet inden for fem minutter." if danish else "Standby was sent, but pump stop was not confirmed within five minutes."
+        if self.standby_engaged and not self.pumpstop_confirmed:
+            return "Standby er sendt. Venter på at pumpekald, pumpe og radiatorventil stopper." if danish else "Standby was sent. Waiting for pump demand, pump and heating valve to stop."
+        if self.standby_engaged:
+            return "Alle rum er varme, og pumpestop er bekræftet." if danish else "All rooms are warm and pump stop is confirmed."
+        if self.all_warm and not self.demand:
+            return "Alle rum er varme. Standby aktiveres, når nedtællingen er slut." if danish else "All rooms are warm. Standby engages when the countdown ends."
+        return "Mindst ét rum eller en ventil har varmebehov." if danish else "At least one room or valve needs heat."
 
     def status_text(self, danish: bool) -> str:
         """Return a short, human-readable status string."""
