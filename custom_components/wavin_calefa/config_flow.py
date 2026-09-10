@@ -316,6 +316,7 @@ class WavinCalefaOptionsFlow(config_entries.OptionsFlow):
             has_demand_sources = bool(
                 user_input.get(CONF_DEMAND_CLIMATE_ENTITIES)
                 or user_input.get(CONF_DEMAND_SENSOR_ROOMS)
+                or user_input.get(CONF_DEMAND_VALVE_ENTITIES)
             )
             if auto_standby_enabled and not has_demand_sources:
                 errors["base"] = "auto_standby_needs_demand_sources"
