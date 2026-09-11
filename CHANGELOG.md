@@ -2,6 +2,17 @@
 
 All notable changes to Wavin Calefa are documented in this file.
 
+## [0.7.9] - 2026-09-11
+
+### Fixed
+
+- Better Thermostat no longer resets the full Auto standby warm-room delay
+  when it reports `hvac_action: heating` at target with every calculated
+  physical valve at or below the configured valve threshold.
+- A Better Thermostat valve above the threshold and generic climate entities
+  without valve details remain fail-safe heat demand and release standby
+  immediately.
+
 ## [0.7.8] - 2026-09-11
 
 ### Fixed

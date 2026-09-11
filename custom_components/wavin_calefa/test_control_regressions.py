@@ -1,6 +1,7 @@
 """Standalone control regression tests: python3 <this file>. No live writes."""
 import ast
 import asyncio
+import json
 import logging
 from pathlib import Path
 import runpy
@@ -37,6 +38,7 @@ def load_class(filename, classname):
     import math
     env['time'] = time
     env['math'] = math
+    env['json'] = json
     exec(compile(ast.fix_missing_locations(tree), filename, 'exec'), env)
     return env[classname]
 
@@ -114,6 +116,49 @@ class Controls(unittest.IsolatedAsyncioTestCase):
         await manager._async_evaluate()
         self.coordinator.async_write_holding_register.assert_awaited_once_with(26, 0)
         self.assertFalse(manager._engaged)
+
+    async def test_better_thermostat_subthreshold_pulse_does_not_reset_warm_delay(self):
+        self.entry.options['heat_call_valve_threshold'] = 5.0
+        tracker = Demand(SimpleNamespace(states={
+            'climate.test': SimpleNamespace(
+                state='heat', attributes={
+                    'current_temperature': 22.0,
+                    'temperature': 22.0,
+                    'hvac_action': 'heating',
+                    'calibration_balance': json.dumps({
+                        'climate.valve_one': {'valve%': 4},
+                        'climate.valve_two': {'valve%': 0},
+                    }),
+                }),
+        }), self.entry)
+        self.assertEqual(tracker.evaluate_demand(), (True, False))
+        self.assertEqual(tracker.evaluate_all_warm(), (True, True))
+
+    async def test_better_thermostat_open_valve_is_real_demand(self):
+        self.entry.options['heat_call_valve_threshold'] = 5.0
+        tracker = Demand(SimpleNamespace(states={
+            'climate.test': SimpleNamespace(
+                state='heat', attributes={
+                    'current_temperature': 22.0,
+                    'temperature': 22.0,
+                    'hvac_action': 'heating',
+                    'calibration_balance': {'climate.valve': {'valve%': 6}},
+                }),
+        }), self.entry)
+        self.assertEqual(tracker.evaluate_demand(), (True, True))
+        self.assertEqual(tracker.evaluate_all_warm(), (True, False))
+
+    async def test_generic_heating_action_remains_fail_safe(self):
+        tracker = Demand(SimpleNamespace(states={
+            'climate.test': SimpleNamespace(
+                state='heat', attributes={
+                    'current_temperature': 22.0,
+                    'temperature': 22.0,
+                    'hvac_action': 'heating',
+                }),
+        }), self.entry)
+        self.assertEqual(tracker.evaluate_demand(), (True, True))
+        self.assertEqual(tracker.evaluate_all_warm(), (True, False))
 
     async def test_valve_demand_releases_standby_without_restart_delay(self):
         self.entry.options.update({
