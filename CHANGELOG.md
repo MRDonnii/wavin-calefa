@@ -2,6 +2,18 @@
 
 All notable changes to Wavin Calefa are documented in this file.
 
+## [0.7.6] - 2026-09-11
+
+### Fixed
+
+- Fresh HACS installations now configure radiator thermostats, sensor-only
+  rooms, valve demand sources and automatic standby as part of the initial
+  setup. Previously these safety-critical per-installation choices were only
+  available later under Configure, so copying the integration to a second Home
+  Assistant instance did not reproduce the demand-aware standby behaviour.
+- Initial setup refuses to enable automatic standby without at least one demand
+  source, matching the existing options-flow fail-safe validation.
+
 ## [0.7.5] - 2026-09-10
 
 ### Added

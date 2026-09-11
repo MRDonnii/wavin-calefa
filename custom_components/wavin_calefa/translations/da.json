@@ -12,10 +12,26 @@
           "unit_id": "Modbus unit ID",
           "scan_interval": "Opdateringsinterval"
         }
+      },
+      "auto_standby": {
+        "title": "Radiatorbehov og automatisk standby",
+        "description": "Vælg de radiator-termostater og eventuelle ventiler, som skal kunne vække Calefa straks. Hvis Automatisk standby aktiveres, frigives standby ved første gyldige varmebehov. Funktionen aktiveres ikke uden mindst én valgt varmekilde.",
+        "data": {
+          "heat_call_climate_entities": "Radiator-termostater der skal vække Calefa",
+          "heat_call_ac_entities": "AC/køleenheder der skal undertrykke behov, mens de aktivt køler (valgfri)",
+          "heat_call_sensor_rooms": "Rum uden termostat (én 'sensor:mål' pr. linje; mål kan være en temperatur eller input_number-entity)",
+          "heat_call_valve_entities": "Ventiler/aktuatorer der signalerer varmebehov (valgfri)",
+          "heat_call_valve_threshold": "Ventilåbning der regnes som behov (%)",
+          "heat_call_hysteresis": "Hysterese (°C under mål før behov starter)",
+          "heat_call_restart_delay_minutes": "Ældre kompatibilitetsværdi (varmebehov frigiver altid standby straks)",
+          "auto_standby_enabled": "Aktivér automatisk standby",
+          "auto_standby_delay_minutes": "Hvor længe alt skal være varmt nok før standby aktiveres (minutter)"
+        }
       }
     },
     "error": {
-      "cannot_connect": "Der kunne ikke oprettes forbindelse til enheden."
+      "cannot_connect": "Der kunne ikke oprettes forbindelse til enheden.",
+      "auto_standby_needs_demand_sources": "Automatisk standby kræver mindst én radiator-termostat, ét sensor-rum eller én ventil ovenfor."
     },
     "abort": {
       "already_configured": "Denne enhed er allerede konfigureret."

@@ -217,6 +217,10 @@ class WavinCalefaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     VERSION = 2
 
+    def __init__(self) -> None:
+        """Initialize the flow."""
+        self._connection_data: dict[str, Any] | None = None
+
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
@@ -242,14 +246,41 @@ class WavinCalefaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 self._abort_if_unique_id_configured()
 
             if not errors:
-                return self.async_create_entry(
-                    title=user_input[CONF_NAME],
-                    data=user_input,
-                )
+                self._connection_data = user_input
+                return await self.async_step_auto_standby()
 
         return self.async_show_form(
             step_id="user",
             data_schema=_schema(user_input, include_port=False),
+            errors=errors,
+        )
+
+    async def async_step_auto_standby(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Configure radiator demand sources during first-time setup."""
+        if self._connection_data is None:
+            return await self.async_step_user()
+
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            if _auto_standby_missing_sources(user_input):
+                errors["base"] = "auto_standby_needs_demand_sources"
+            else:
+                return self.async_create_entry(
+                    title=self._connection_data[CONF_NAME],
+                    data=self._connection_data,
+                    options=user_input,
+                )
+
+        defaults = user_input or {}
+        schema_dict = {
+            **_demand_schema(defaults).schema,
+            **_auto_standby_schema(defaults).schema,
+        }
+        return self.async_show_form(
+            step_id="auto_standby",
+            data_schema=vol.Schema(schema_dict),
             errors=errors,
         )
 
@@ -278,6 +309,15 @@ _AUTO_STANDBY_OPTION_KEYS = (
 )
 
 _OPTION_KEYS = _DEMAND_OPTION_KEYS + _AUTO_STANDBY_OPTION_KEYS
+
+
+def _auto_standby_missing_sources(values: dict[str, Any]) -> bool:
+    """Return whether enabled automatic standby lacks a demand source."""
+    return bool(values.get(CONF_AUTO_STANDBY_ENABLED, False)) and not bool(
+        values.get(CONF_DEMAND_CLIMATE_ENTITIES)
+        or values.get(CONF_DEMAND_SENSOR_ROOMS)
+        or values.get(CONF_DEMAND_VALVE_ENTITIES)
+    )
 
 
 class WavinCalefaOptionsFlow(config_entries.OptionsFlow):
@@ -312,13 +352,7 @@ class WavinCalefaOptionsFlow(config_entries.OptionsFlow):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            auto_standby_enabled = user_input.get(CONF_AUTO_STANDBY_ENABLED, False)
-            has_demand_sources = bool(
-                user_input.get(CONF_DEMAND_CLIMATE_ENTITIES)
-                or user_input.get(CONF_DEMAND_SENSOR_ROOMS)
-                or user_input.get(CONF_DEMAND_VALVE_ENTITIES)
-            )
-            if auto_standby_enabled and not has_demand_sources:
+            if _auto_standby_missing_sources(user_input):
                 errors["base"] = "auto_standby_needs_demand_sources"
 
             if not errors:

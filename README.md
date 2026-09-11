@@ -103,6 +103,12 @@ This adds a few more entities under the Calefa device:
 
 [![Open your Home Assistant instance and add this repository to HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=MRDonnii&repository=wavin-calefa&category=integration)
 
+During first-time setup, select every radiator thermostat and any other demand
+source that must wake Calefa. These entity IDs belong to each Home Assistant
+installation and cannot be copied through HACS. Automatic standby stays off
+unless you explicitly enable it, and it cannot be enabled without a demand
+source.
+
 ## Manual installation
 
 Copy `custom_components/wavin_calefa` to the `custom_components` directory in your Home Assistant configuration, then restart Home Assistant.
