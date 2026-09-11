@@ -12,10 +12,26 @@
           "unit_id": "Modbus unit ID",
           "scan_interval": "Scan interval"
         }
+      },
+      "auto_standby": {
+        "title": "Heating demand and automatic standby",
+        "description": "Select the radiator thermostats and any valves that must wake Calefa immediately. When Automatic standby is enabled, the first valid heat demand releases standby. The feature cannot be enabled without at least one selected heat source.",
+        "data": {
+          "heat_call_climate_entities": "Radiator thermostats that must wake Calefa",
+          "heat_call_ac_entities": "AC/cooling entities that should suppress demand while actively cooling (optional)",
+          "heat_call_sensor_rooms": "Rooms without a thermostat (one 'sensor:target' per line; target may be a temperature or input_number entity)",
+          "heat_call_valve_entities": "Valves/actuators that signal heat demand (optional)",
+          "heat_call_valve_threshold": "Valve opening considered demand (%)",
+          "heat_call_hysteresis": "Hysteresis (°C below target before demand starts)",
+          "heat_call_restart_delay_minutes": "Legacy compatibility value (heat demand always releases standby immediately)",
+          "auto_standby_enabled": "Enable automatic standby",
+          "auto_standby_delay_minutes": "How long everything must stay warm enough before standby engages (minutes)"
+        }
       }
     },
     "error": {
-      "cannot_connect": "Could not connect to the unit."
+      "cannot_connect": "Could not connect to the unit.",
+      "auto_standby_needs_demand_sources": "Automatic standby needs at least one radiator thermostat, sensor-only room, or valve above."
     },
     "abort": {
       "already_configured": "This unit is already configured."
