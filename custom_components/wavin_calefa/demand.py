@@ -17,6 +17,7 @@ proportionate benefit. See CHANGELOG for the removal.
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -112,6 +113,41 @@ class WavinCalefaDemandTracker:
     def _hysteresis(self) -> float:
         return float(self.options.get(CONF_DEMAND_HYSTERESIS, DEFAULT_DEMAND_HYSTERESIS))
 
+    def _climate_actively_heating(self, state: Any) -> bool:
+        """Return a meaningful thermostat heat request.
+
+        Better Thermostat can briefly report ``hvac_action=heating`` at the
+        target while its calculated physical valve openings are only a few
+        percent. Treat those sub-threshold calibration pulses like the same
+        configurable valve noise already filtered for explicit valve sources.
+        Climate entities without Better Thermostat's optional
+        ``calibration_balance`` attribute retain standard HA semantics and
+        fail safe on every heating action.
+        """
+        if state.attributes.get("hvac_action") != "heating":
+            return False
+        balance = state.attributes.get("calibration_balance")
+        if balance is None:
+            return True
+        if isinstance(balance, str):
+            try:
+                balance = json.loads(balance)
+            except (TypeError, ValueError):
+                return True
+        if not isinstance(balance, dict):
+            return True
+        openings: list[float] = []
+        for valve in balance.values():
+            if not isinstance(valve, dict):
+                continue
+            try:
+                openings.append(float(valve.get("valve%")))
+            except (TypeError, ValueError):
+                continue
+        if not openings:
+            return True
+        return any(opening > self._valve_threshold() for opening in openings)
+
     def restart_delay_minutes(self) -> float:
         """Return the retained legacy restart-delay option.
 
@@ -161,7 +197,7 @@ class WavinCalefaDemandTracker:
                 continue
             if (
                 current <= target - hysteresis
-                or state.attributes.get("hvac_action") == "heating"
+                or self._climate_actively_heating(state)
             ):
                 demand = True
 
@@ -238,7 +274,7 @@ class WavinCalefaDemandTracker:
                 continue
             if cooling and state.state == "off":
                 continue
-            if current < target or state.attributes.get("hvac_action") == "heating":
+            if current < target or self._climate_actively_heating(state):
                 warm = False
 
         for entity_id, target_source in sensor_rooms:
