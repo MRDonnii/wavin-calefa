@@ -2,6 +2,14 @@
 
 All notable changes to Wavin Calefa are documented in this file.
 
+## [0.7.7] - 2026-09-11
+
+### Changed
+
+- First-time setup now states explicitly that automatic standby and all demand
+  sources are optional. Users who do not want automatic standby can leave it
+  off and continue without selecting any heat sources.
+
 ## [0.7.6] - 2026-09-11
 
 ### Fixed
