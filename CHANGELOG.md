@@ -2,6 +2,15 @@
 
 All notable changes to Wavin Calefa are documented in this file.
 
+## [0.7.8] - 2026-09-11
+
+### Fixed
+
+- Added the canonical `strings.json` labels and validation message for the new
+  first-time automatic-standby setup step. Localized translations were already
+  present, but a fresh installation must also have the English source strings
+  for a complete Home Assistant config flow.
+
 ## [0.7.7] - 2026-09-11
 
 ### Changed
