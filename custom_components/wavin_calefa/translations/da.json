@@ -15,7 +15,7 @@
       },
       "auto_standby": {
         "title": "Radiatorbehov og automatisk standby",
-        "description": "Vælg de radiator-termostater og eventuelle ventiler, som skal kunne vække Calefa straks. Hvis Automatisk standby aktiveres, frigives standby ved første gyldige varmebehov. Funktionen aktiveres ikke uden mindst én valgt varmekilde.",
+        "description": "Valgfrit: Lad Automatisk standby være slået fra og alle varmekilder stå tomme, hvis du ikke vil bruge funktionen. Hvis den aktiveres, skal du vælge de radiator-termostater og eventuelle ventiler, som skal kunne vække Calefa straks ved varmebehov.",
         "data": {
           "heat_call_climate_entities": "Radiator-termostater der skal vække Calefa",
           "heat_call_ac_entities": "AC/køleenheder der skal undertrykke behov, mens de aktivt køler (valgfri)",
