@@ -12,6 +12,7 @@ from .auto_standby import WavinCalefaAutoStandbyManager
 from .const import AUTO_STANDBY_DATA, DEMAND_DATA, DOMAIN, PLATFORMS
 from .coordinator import WavinCalefaCoordinator
 from .demand import WavinCalefaDemandTracker
+from .entity_helpers import async_link_control_devices
 from .modbus import WavinCalefaClient, WavinCalefaError
 
 LOGGER = logging.getLogger(__name__)
@@ -129,6 +130,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    # The platforms have now created the devices that need linking.
+    async_link_control_devices(hass, entry)
     # Restore runtime switches before the manager can act on the unit.
     await auto_standby.async_setup()
     return True
