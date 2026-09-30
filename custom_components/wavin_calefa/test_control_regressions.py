@@ -43,8 +43,23 @@ def load_class(filename, classname):
     return env[classname]
 
 
+def load_function(filename, name, **extra):
+    """Load one function plus the module-level constants it relies on."""
+    tree = ast.parse((ROOT / filename).read_text())
+    tree.body = [ast.ImportFrom(module='__future__', names=[ast.alias(name='annotations')], level=0)] + [
+        node for node in tree.body
+        if isinstance(node, ast.Assign)
+        or (isinstance(node, ast.FunctionDef) and node.name == name)
+    ]
+    env = runpy.run_path(str(ROOT / 'const.py'))
+    env.update(callback=lambda f: f, **extra)
+    exec(compile(ast.fix_missing_locations(tree), filename, 'exec'), env)
+    return env[name]
+
+
 Demand = load_class('demand.py', 'WavinCalefaDemandTracker')
 Standby = load_class('auto_standby.py', 'WavinCalefaAutoStandbyManager')
+DOMAIN = runpy.run_path(str(ROOT / 'const.py'))['DOMAIN']
 
 
 class Controls(unittest.IsolatedAsyncioTestCase):
@@ -339,6 +354,53 @@ class Controls(unittest.IsolatedAsyncioTestCase):
         manager._pumpstop_started_at = __import__('time').time() - 60
         self.assertTrue(239 <= manager.pumpstop_remaining_seconds() <= 240)
         self.assertIn('Venter på', manager.status_description(True))
+
+
+class FakeDeviceRegistry:
+    def __init__(self, devices):
+        self.devices = devices
+        self.updates = []
+
+    def async_update_device(self, device_id, **changes):
+        self.updates.append((device_id, changes))
+
+
+def device(device_id, identifier, via_device_id=None, domain=DOMAIN):
+    return SimpleNamespace(
+        id=device_id, identifiers={(domain, identifier)}, via_device_id=via_device_id)
+
+
+class DeviceLinking(unittest.TestCase):
+    def link(self, devices):
+        registry = FakeDeviceRegistry(devices)
+        fake_dr = SimpleNamespace(
+            async_get=lambda hass: registry,
+            async_entries_for_config_entry=lambda reg, entry_id: reg.devices)
+        link = load_function('entity_helpers.py', 'async_link_control_devices', dr=fake_dr)
+        link(SimpleNamespace(), SimpleNamespace(entry_id='test'))
+        return registry.updates
+
+    def test_control_subdevices_link_to_main_unit(self):
+        updates = self.link([
+            device('unit', 'test'),
+            device('heating', 'test_heating'),
+            device('room', 'test_room', via_device_id='unit'),
+            device('foreign', 'test_dhw', domain='other_domain'),
+        ])
+        self.assertEqual(updates, [('heating', {'via_device_id': 'unit'})])
+
+    def test_linking_waits_for_main_unit(self):
+        self.assertEqual(self.link([device('heating', 'test_heating')]), [])
+
+    def test_no_deprecated_via_device_keyword(self):
+        # via_device is deprecated from Home Assistant 2026.8, removed in 2027.8.
+        offenders = [
+            f'{path.name}:{node.lineno}'
+            for path in sorted(ROOT.glob('*.py'))
+            for node in ast.walk(ast.parse(path.read_text()))
+            if isinstance(node, ast.keyword) and node.arg == 'via_device'
+        ]
+        self.assertEqual(offenders, [])
 
 
 if __name__ == '__main__':

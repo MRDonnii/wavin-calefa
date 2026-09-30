@@ -2,6 +2,16 @@
 
 All notable changes to Wavin Calefa are documented in this file.
 
+## [0.7.10] - 2026-09-30
+
+### Fixed
+
+- The Heating, Room and Domestic hot water subdevices are now linked to the
+  main unit through the device registry instead of the `via_device` field in
+  their device info. Home Assistant 2026.8 deprecated `via_device`, logs a
+  warning for it and removes it in 2027.8. The replacement works on every
+  supported Home Assistant version, and the device hierarchy is unchanged.
+
 ## [0.7.9] - 2026-09-11
 
 ### Fixed
