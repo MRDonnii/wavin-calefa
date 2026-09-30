@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.entity import DeviceInfo
 
 from .const import (
@@ -60,5 +62,30 @@ def control_device_info(
         name=f"{entry.title} · {label}",
         manufacturer="Wavin",
         model=f"Calefa {label}",
-        via_device=(DOMAIN, entry.entry_id),
     )
+
+
+@callback
+def async_link_control_devices(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Link the control subdevices to the main unit in the device registry.
+
+    This replaces `via_device` in DeviceInfo, which Home Assistant deprecates
+    from 2026.8 and removes in 2027.8. Its replacement, DeviceInfo
+    `via_device_id`, does not exist before 2026.8, whereas
+    `async_update_device(via_device_id=...)` works on every supported version.
+    """
+    device_registry = dr.async_get(hass)
+    devices = {
+        identifier: device
+        for device in dr.async_entries_for_config_entry(
+            device_registry, entry.entry_id
+        )
+        for domain, identifier in device.identifiers
+        if domain == DOMAIN
+    }
+    if (unit := devices.get(entry.entry_id)) is None:
+        return
+    for group in GROUP_LABELS:
+        device = devices.get(f"{entry.entry_id}_{group}")
+        if device is not None and device.via_device_id != unit.id:
+            device_registry.async_update_device(device.id, via_device_id=unit.id)
