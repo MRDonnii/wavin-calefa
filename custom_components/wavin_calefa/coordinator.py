@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import timedelta
 import asyncio
 import logging
+import time
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -230,6 +231,34 @@ class WavinCalefaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # start an unbounded number of full scans.
             self.hass.async_create_task(self.async_request_refresh())
 
+    def _read_device_clock(self) -> int:
+        """Read the unit's clock (HR 28-29).
+
+        Calefa stores a Unix-style epoch in *local* time including DST, so it
+        runs ahead of time.time() by the UTC offset. Timestamps written back
+        to the unit (e.g. temporary-mode expiry) must use this clock.
+        """
+        high = self.client.read_register(28, input_type="holding")
+        low = self.client.read_register(29, input_type="holding")
+        high_again = self.client.read_register(28, input_type="holding")
+        if high_again != high:
+            # Low word wrapped between the two reads; read it again.
+            high = high_again
+            low = self.client.read_register(29, input_type="holding")
+        return (high << 16) | low
+
+    async def async_device_now(self) -> int:
+        """Return the current time on the unit's own clock."""
+        async with self._write_lock:
+            return await self.hass.async_add_executor_job(self._read_device_clock)
+
+    def device_now_estimate(self) -> int | None:
+        """Estimate the unit's clock from the offset seen at the last poll."""
+        offset = (self.data or {}).get("device_clock_offset")
+        if not isinstance(offset, int):
+            return None
+        return int(time.time()) + offset
+
     async def _async_update_data(self) -> dict[str, Any]:
         """Update data from the unit."""
         try:
@@ -261,6 +290,11 @@ class WavinCalefaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 continue
             data[key] = _convert(raw, kind)
             data[f"{key}_raw"] = raw
+
+        try:
+            data["device_clock_offset"] = self._read_device_clock() - int(time.time())
+        except WavinCalefaError as err:
+            unavailable["device_clock_offset"] = str(err)
 
         for key, address in DISCRETE_INPUTS.items():
             try:

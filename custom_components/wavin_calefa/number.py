@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import math
-import time
 
 from homeassistant.components.number import (
     NumberEntity,
@@ -360,7 +359,7 @@ class WavinCalefaRoomTemporaryDurationNumber(
         )
 
     @property
-    def native_value(self) -> float:
+    def native_value(self) -> float | None:
         """Return remaining duration rounded up to a 15-minute step."""
         if self.coordinator.data.get("room_temporary_mode") != 1:
             return 0.0
@@ -369,7 +368,10 @@ class WavinCalefaRoomTemporaryDurationNumber(
         if not isinstance(high, int) or not isinstance(low, int):
             return 0.0
         expiry = (high << 16) | low
-        remaining = max(0, expiry - int(time.time()))
+        device_now = self.coordinator.device_now_estimate()
+        if device_now is None:
+            return None
+        remaining = max(0, expiry - device_now)
         return float(min(1440, math.ceil(remaining / 900) * 15))
 
     async def async_set_native_value(self, value: float) -> None:
@@ -378,7 +380,7 @@ class WavinCalefaRoomTemporaryDurationNumber(
         if minutes == 0:
             await self.coordinator.async_write_holding_register(7509, 0)
             return
-        expiry = int(time.time()) + minutes * 60
+        expiry = await self.coordinator.async_device_now() + minutes * 60
         await self.coordinator.async_write_holding_registers(
             {
                 7510: (expiry >> 16) & 0xFFFF,

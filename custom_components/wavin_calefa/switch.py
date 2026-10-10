@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import time
-
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -286,7 +284,7 @@ class WavinCalefaRoomTemporaryModeSwitch(
 
     async def async_turn_on(self, **kwargs: object) -> None:
         """Activate a temporary override for the default 15 minutes."""
-        expiry = int(time.time()) + 15 * 60
+        expiry = await self.coordinator.async_device_now() + 15 * 60
         await self.coordinator.async_write_holding_registers(
             {
                 7510: (expiry >> 16) & 0xFFFF,

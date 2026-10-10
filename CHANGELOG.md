@@ -2,6 +2,12 @@
 
 All notable changes to Wavin Calefa are documented in this file.
 
+## [0.7.10] - 2026-10-10
+
+### Fixed
+
+- The RUM temporary-mode expiry is now written in the unit's own clock. Calefa stores its date/time (holding registers 28-29) as a Unix-style epoch in local time including DST, but the expiry was computed from UTC, so it landed one to two hours in the past from the unit's point of view. The "Temp. mode" switch and the temporary-duration control now read the unit clock before writing, and the remaining-time display uses the same clock.
+
 ## [0.7.9] - 2026-09-11
 
 ### Fixed
