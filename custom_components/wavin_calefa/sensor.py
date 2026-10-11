@@ -1178,4 +1178,5 @@ class WavinCalefaAutoStandbyStatusSensor(SensorEntity):
             "pump_running": self._auto_standby.coordinator.data.get("itc_pump_status"),
             "heating_valve_position": self._auto_standby.coordinator.data.get("cvv_valve_position"),
             "confirmation_attempts": self._auto_standby._pumpstop_attempts,
+            "pump_circulating": self._auto_standby.pump_circulating,
         }

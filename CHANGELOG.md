@@ -2,6 +2,18 @@
 
 All notable changes to Wavin Calefa are documented in this file.
 
+## [0.7.12] - 2026-10-11
+
+### Fixed
+
+- Automatic standby no longer reports a pump-stop fault when Calefa keeps the
+  radiator pump circulating behind a closed valve. Standby now counts as
+  confirmed once the CVV valve is closed (1 % or less) and the unit reports
+  its heating circuit as standby, because no district heat is delivered then.
+  The status shows "Standby active, pump circulating" until the pump stops,
+  and the status sensor has a new `pump_circulating` attribute. A valve that
+  stays open is still reported as a fault after five minutes.
+
 ## [0.7.11] - 2026-10-10
 
 ### Fixed

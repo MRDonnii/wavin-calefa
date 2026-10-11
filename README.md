@@ -73,7 +73,7 @@ Three kinds of demand source can be combined:
 
 These sources are only ever read - nothing about Calefa's own regulation is written to or bypassed.
 
-Before actually engaging standby, and again after, it confirms the unit's own pump call, pump status, and CVV valve position have genuinely settled - retrying a few times before reporting a fault rather than holding an unconfirmed standby indefinitely. If standby is ever released manually (or by something else), that's always respected; the feature only ever acts on standby it engaged itself.
+After engaging standby it confirms the unit has actually stopped heating: either the pump call, pump status and CVV valve have all settled, or the CVV valve is closed and the unit reports its heating circuit as standby. Calefa sometimes keeps the radiator pump circulating behind a closed valve. That delivers no heat, so it is shown in the status ("Standby active, pump circulating") instead of as a fault. If the heating circuit hasn't stopped after a few retries, it reports a fault rather than holding an unconfirmed standby indefinitely. If standby is ever released manually (or by something else), that's always respected; the feature only ever acts on standby it engaged itself.
 
 ### Setting it up
 
@@ -89,7 +89,7 @@ This adds a few more entities under the Calefa device:
 | Automatic standby (switch) | Pause or resume the feature at any time, independent of the setup above |
 | Automatic standby status (sensor) | Human-readable current state |
 | Automatic standby active (binary sensor) | On while standby is being held by the automation |
-| Automatic standby fault (binary sensor) | On if the pump stop couldn't be confirmed after standby was engaged |
+| Automatic standby fault (binary sensor) | On if the heating circuit didn't stop (valve closed, circuit in standby) within five minutes of engaging standby |
 | Automatic standby data valid (binary sensor, diagnostic) | On while the configured demand sources report usable data |
 | All rooms warm enough (binary sensor, diagnostic) | On while every configured room is warm enough to allow standby |
 

@@ -6,8 +6,11 @@ tracker is configured with) is warm enough for long enough, then releases it
 again the moment any source is below target, actively heating/open, or the
 underlying data becomes invalid. Releasing standby is never debounced: heat
 always wins immediately.
-Standby is only ever engaged after confirming the unit's own pump call, pump
-status, and CVV valve position have actually settled - retried a few times
+Standby is confirmed once the unit has actually stopped heating: either pump
+call, pump status and CVV valve have all settled, or the CVV valve is closed
+and the unit reports its heating circuit as standby. Calefa sometimes keeps
+the radiator pump circulating behind a closed valve; that delivers no heat
+and is shown as status, not as a fault. Confirmation is retried a few times
 before giving up and reporting a fault instead of holding an unconfirmed
 standby indefinitely. Manually toggling the unit's own standby switch is
 always respected: this feature never fights a change it didn't make itself.
@@ -77,6 +80,7 @@ class WavinCalefaAutoStandbyManager:
         self.standby_engaged = False
         self.pumpstop_confirmed = False
         self.fault = False
+        self.pump_circulating = False
 
     @property
     def options(self) -> dict[str, Any]:
@@ -272,6 +276,12 @@ class WavinCalefaAutoStandbyManager:
                 or (standby_engaged and not pumpstop_confirmed)
             )
         )
+        pump_circulating = (
+            standby_engaged and pumpstop_confirmed and not self._pumpstop_safe()
+        )
+        if pump_circulating != self.pump_circulating:
+            self.pump_circulating = pump_circulating
+            changed = True
         if changed or countdown_active:
             self._notify_listeners()
 
@@ -318,6 +328,21 @@ class WavinCalefaAutoStandbyManager:
             return None
         return demand == 0 and status == 0 and valve <= 1
 
+    def _heating_stopped(self) -> bool:
+        """Return whether the heating circuit is in standby behind a closed CVV valve.
+
+        Calefa can keep the radiator pump circulating in standby. With the
+        valve closed and the circuit reporting standby no district heat is
+        delivered, so standby has done its job even if the pump still runs.
+        """
+        ch_state = self.coordinator.data.get("ch_state")
+        valve = self.coordinator.data.get("cvv_valve_position")
+        return (
+            ch_state == 0
+            and isinstance(valve, (int, float))
+            and valve <= 1
+        )
+
     async def _async_check_pumpstop_safe(self) -> None:
         """Confirm the pump has actually stopped, retrying standby a few times if not."""
         if self._pumpstop_started_at is None:
@@ -325,7 +350,7 @@ class WavinCalefaAutoStandbyManager:
         if self._pumpstop_confirmed:
             return
         safe = self._pumpstop_safe()
-        if safe:
+        if safe or self._heating_stopped():
             self._pumpstop_confirmed = True
             # A late but successful physical stop is healthy. Do not leave a
             # stale latched fault after Calefa's normal pump overrun finishes.
@@ -400,9 +425,11 @@ class WavinCalefaAutoStandbyManager:
         if not self.data_valid:
             return "Manglende rumdata frigiver standby af sikkerhedshensyn." if danish else "Missing room data releases standby for safety."
         if self.fault:
-            return "Standby er sendt, men pumpestop blev ikke bekræftet inden for fem minutter." if danish else "Standby was sent, but pump stop was not confirmed within five minutes."
+            return "Standby er sendt, men varmekredsen stoppede ikke inden for fem minutter." if danish else "Standby was sent, but the heating circuit did not stop within five minutes."
         if self.standby_engaged and not self.pumpstop_confirmed:
-            return "Standby er sendt. Venter på at pumpekald, pumpe og radiatorventil stopper." if danish else "Standby was sent. Waiting for pump demand, pump and heating valve to stop."
+            return "Standby er sendt. Venter på at radiatorventilen lukker og varmekredsen stopper." if danish else "Standby was sent. Waiting for the heating valve to close and the heating circuit to stop."
+        if self.standby_engaged and self.pump_circulating:
+            return "Alle rum er varme, og radiatorventilen er lukket. Calefa lader pumpen cirkulere, men der leveres ikke varme." if danish else "All rooms are warm and the heating valve is closed. Calefa keeps the pump circulating, but no heat is delivered."
         if self.standby_engaged:
             return "Alle rum er varme, og pumpestop er bekræftet." if danish else "All rooms are warm and pump stop is confirmed."
         if self.all_warm and not self.demand:
@@ -421,6 +448,8 @@ class WavinCalefaAutoStandbyManager:
             return "Pumpestop fejl" if danish else "Pump-stop fault"
         if self.coordinator.data.get("standby") == 1 and not self._engaged:
             return "Standby uden automatisk ejerskab" if danish else "Standby not owned by automation"
+        if self.standby_engaged and self.pumpstop_confirmed and self.pump_circulating:
+            return "Standby aktiv, pumpe cirkulerer" if danish else "Standby active, pump circulating"
         if self.standby_engaged and self.pumpstop_confirmed:
             return "Standby aktiv" if danish else "Standby active"
         if self.standby_engaged:

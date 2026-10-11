@@ -291,10 +291,55 @@ class Controls(unittest.IsolatedAsyncioTestCase):
         manager._engaged = True
         self.coordinator.data.update(
             standby=1, itc_pump_demand=0, itc_pump_status=1,
-            cvv_valve_position=0.0)
+            cvv_valve_position=0.0, ch_state=1)
         await manager._async_check_pumpstop_safe()
         self.assertFalse(manager._pumpstop_confirmed)
         self.assertTrue(manager._pumpstop_error)
+
+    async def test_circulating_pump_behind_closed_valve_is_not_a_fault(self):
+        """Calefa may keep the radiator pump running in standby with the valve shut."""
+        self.demand.evaluate_demand = lambda: (True, False)
+        self.demand.evaluate_all_warm = lambda: (True, True)
+        manager = Standby(SimpleNamespace(), self.entry, self.coordinator, self.demand)
+        await manager._async_engage()
+        self.coordinator.data.update(
+            standby=1, itc_pump_demand=1, itc_pump_status=1,
+            cvv_valve_position=0.0, ch_state=0)
+        self.coordinator.async_write_holding_register.reset_mock()
+
+        await manager._async_evaluate()
+
+        self.assertTrue(manager.pumpstop_confirmed)
+        self.assertFalse(manager.fault)
+        self.assertTrue(manager.pump_circulating)
+        self.assertEqual(manager.status_text(True), 'Standby aktiv, pumpe cirkulerer')
+        self.coordinator.async_write_holding_register.assert_not_awaited()
+
+        self.coordinator.data.update(itc_pump_demand=0, itc_pump_status=0)
+        await manager._async_evaluate()
+        self.assertFalse(manager.pump_circulating)
+        self.assertEqual(manager.status_text(True), 'Standby aktiv')
+
+    async def test_latched_fault_clears_once_heating_circuit_stops(self):
+        manager = Standby(SimpleNamespace(), self.entry, self.coordinator, self.demand)
+        manager._pumpstop_error = True
+        manager._engaged = True
+        self.coordinator.data.update(
+            standby=1, itc_pump_demand=1, itc_pump_status=1,
+            cvv_valve_position=0.0, ch_state=0)
+        await manager._async_check_pumpstop_safe()
+        self.assertTrue(manager._pumpstop_confirmed)
+        self.assertFalse(manager._pumpstop_error)
+
+    async def test_open_valve_still_counts_as_running_heat(self):
+        manager = Standby(SimpleNamespace(), self.entry, self.coordinator, self.demand)
+        await manager._async_engage()
+        manager._pumpstop_next_retry_at = 0
+        self.coordinator.data.update(
+            standby=1, itc_pump_demand=1, itc_pump_status=1,
+            cvv_valve_position=12.0, ch_state=0)
+        await manager._async_check_pumpstop_safe()
+        self.assertFalse(manager._pumpstop_confirmed)
 
     async def test_binary_afterheat_blocks_standby(self):
         self.entry.options['heat_call_climate_entities'] = []
