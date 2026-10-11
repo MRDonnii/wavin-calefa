@@ -190,5 +190,10 @@
       "itc_htco_error": {"name": "HTCO fejl (ITC)"},
       "itc_hs_frost_protection": {"name": "Varme frostbeskyttelse (ITC)"}
     }
+  },
+  "exceptions": {
+    "temporary_mode_standby": {
+      "message": "Midlertidig RUM-mode kan ikke bruges, mens Calefa er i standby: enheden nulstiller den med det samme. Frigiv standby eller sæt automatisk standby på pause først."
+    }
   }
 }

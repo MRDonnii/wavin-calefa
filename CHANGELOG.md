@@ -2,6 +2,20 @@
 
 All notable changes to Wavin Calefa are documented in this file.
 
+## [0.7.13] - 2026-10-11
+
+### Fixed
+
+- Reverted the 0.7.10 change to the RUM temporary-mode expiry. A live test
+  showed Calefa compares the expiry (holding registers 7510-7511) against
+  UTC, even though its own date/time registers (28-29) are local time. In
+  0.7.10-0.7.12 a temporary override therefore lasted the UTC offset longer
+  than requested (2 h 15 min instead of 15 min in summer time). The expiry
+  and the remaining-time display use UTC again, as in 0.7.9.
+- Turning on RUM temporary mode while Calefa is in standby now fails with a
+  clear error. The unit accepted the write but cleared mode and expiry within
+  a couple of seconds, so the request vanished silently.
+
 ## [0.7.12] - 2026-10-11
 
 ### Fixed

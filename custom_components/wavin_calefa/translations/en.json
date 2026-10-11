@@ -190,5 +190,10 @@
       "itc_htco_error": {"name": "HTCO error (ITC)"},
       "itc_hs_frost_protection": {"name": "Heating frost protection (ITC)"}
     }
+  },
+  "exceptions": {
+    "temporary_mode_standby": {
+      "message": "The RUM temporary mode cannot be used while Calefa is in standby: the unit clears it immediately. Release standby or pause automatic standby first."
+    }
   }
 }
