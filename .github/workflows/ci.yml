@@ -1,0 +1,19 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: MRDonnii/ha-room-energy-optimizer/.github/workflows/ha-integration-ci.yml@main
+    with:
+      hacs-ignore: license
+      # The regression tests are a plain unittest script, not pytest-HA tests. -P keeps the
+      # integration folder off sys.path, so its select.py does not shadow the stdlib module.
+      test-command: python -P custom_components/wavin_calefa/test_control_regressions.py

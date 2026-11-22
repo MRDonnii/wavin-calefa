@@ -1,0 +1,199 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Wavin Calefa",
+        "description": "Opret forbindelse til en Wavin Calefa/Sentio unit via lokal Modbus TCP. Integrationen scanner automatisk efter den korrekte Modbus-port.",
+        "data": {
+          "name": "Navn",
+          "host": "IP-adresse",
+          "language": "Sensor sprog",
+          "port": "Port",
+          "unit_id": "Modbus unit ID",
+          "scan_interval": "Opdateringsinterval"
+        }
+      },
+      "auto_standby": {
+        "title": "Radiatorbehov og automatisk standby",
+        "description": "Valgfrit: Lad Automatisk standby være slået fra og alle varmekilder stå tomme, hvis du ikke vil bruge funktionen. Hvis den aktiveres, skal du vælge de radiator-termostater og eventuelle ventiler, som skal kunne vække Calefa straks ved varmebehov.",
+        "data": {
+          "heat_call_climate_entities": "Radiator-termostater der skal vække Calefa",
+          "heat_call_ac_entities": "AC/køleenheder der skal undertrykke behov, mens de aktivt køler (valgfri)",
+          "heat_call_sensor_rooms": "Rum uden termostat (én 'sensor:mål' pr. linje; mål kan være en temperatur eller input_number-entity)",
+          "heat_call_valve_entities": "Ventiler/aktuatorer der signalerer varmebehov (valgfri)",
+          "heat_call_valve_threshold": "Ventilåbning der regnes som behov (%)",
+          "heat_call_hysteresis": "Hysterese (°C under mål før behov starter)",
+          "heat_call_restart_delay_minutes": "Ældre kompatibilitetsværdi (varmebehov frigiver altid standby straks)",
+          "auto_standby_enabled": "Aktivér automatisk standby",
+          "auto_standby_delay_minutes": "Hvor længe alt skal være varmt nok før standby aktiveres (minutter)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Der kunne ikke oprettes forbindelse til enheden.",
+      "auto_standby_needs_demand_sources": "Automatisk standby kræver mindst én radiator-termostat, ét sensor-rum eller én ventil ovenfor."
+    },
+    "abort": {
+      "already_configured": "Denne enhed er allerede konfigureret."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Wavin Calefa indstillinger",
+        "description": "Konfigurér en eller flere eksisterende termostater, sensor-rum uden termostat, og ventil/aktuator-enheder som et fælles varmebehovs-signal - det læses kun, der skrives aldrig til dem. Automatisk standby bruger dette signal til at sætte hele enheden i standby, når alle er varme nok i tilstrækkelig lang tid, og frigiver den igen så snart der er reelt behov. Kræver mindst én termostat eller ét sensor-rum konfigureret nedenfor.",
+        "data": {
+          "name": "Navn",
+          "host": "IP-adresse",
+          "language": "Sensor sprog (auto/da/en)",
+          "port": "Port (0 = auto)",
+          "unit_id": "Modbus unit ID",
+          "scan_interval": "Opdateringsinterval",
+          "heat_call_climate_entities": "Termostater der overvåges for varmebehov",
+          "heat_call_ac_entities": "AC/køleenheder der skal undertrykke behov, mens de aktivt køler (valgfri)",
+          "heat_call_sensor_rooms": "Rum uden termostat (én 'sensor:mål' pr. linje; mål kan være en temperatur eller input_number-entity)",
+          "heat_call_valve_entities": "Aktuator-enheder der signalerer behov ved at åbne, f.eks. en ventilationsenheds eftervarme-ventil (valgfri)",
+          "heat_call_valve_threshold": "Ventilåbning der regnes som behov (%)",
+          "heat_call_hysteresis": "Hysterese (°C under mål før behov starter)",
+          "heat_call_restart_delay_minutes": "Hvor længe reelt behov skal holde ved før automatisk standby frigiver (minutter)",
+          "auto_standby_enabled": "Aktivér automatisk standby",
+          "auto_standby_delay_minutes": "Hvor længe alt skal være varmt nok før standby aktiveres (minutter)"
+        }
+      }
+    },
+    "error": {
+      "auto_standby_needs_demand_sources": "Automatisk standby kræver mindst én termostat eller ét sensor-rum konfigureret ovenfor."
+    }
+  },
+  "entity": {
+    "number": {
+      "room_temporary_temperature": {"name": "Midlertidig rumtemperatur"},
+      "room_temporary_duration": {"name": "Midlertidig rumvarighed"},
+      "heat_curve_manual_slope": {"name": "Manuel varmekurvehældning"},
+      "summer_shutdown_temperature": {"name": "Sommerudkobling"},
+      "heat_curve_parallel_shift": {"name": "Varmekurve parallelforskydning"},
+      "heat_curve_min_supply_temperature": {"name": "Varmekurve minimum fremløb"},
+      "heat_curve_max_supply_temperature": {"name": "Varmekurve maksimum fremløb"},
+      "return_limiter_max_temperature": {"name": "Maksimum returtemperatur"},
+      "return_limiter_max_gain": {"name": "Forstærkning maksimum retur"},
+      "dhw_temperature_setpoint_control": {"name": "Brugsvandstemperatur"},
+      "dhw_bypass_temperature_control": {"name": "Bypass-temperatur"},
+      "circulation_temperature_control": {"name": "Cirkulationstemperatur"}
+    },
+    "select": {
+      "room_mode": {
+        "name": "RUM mode",
+        "state": {
+          "eco": "Øko",
+          "comfort": "Komfort",
+          "extra_comfort": "Ekstra komfort"
+        }
+      },
+      "return_limiter_mode": {
+        "name": "Returbegrænser tilstand",
+        "state": {
+          "off": "Fra",
+          "maximum": "Maksimum"
+        }
+      },
+      "heat_curve_type": {
+        "name": "Varmekurvetype",
+        "state": {
+          "manual": "Manuel",
+          "floor_heating": "Gulvvarme",
+          "radiator": "Radiator"
+        }
+      },
+      "dhw_mode_control": {
+        "name": "Brugsvandstilstand",
+        "state": {
+          "schedule": "Tidsplan",
+          "adaptive_schedule": "Adaptiv tidsplan",
+          "eco": "Eco",
+          "comfort": "Comfort"
+        }
+      }
+    },
+    "switch": {
+      "standby": {"name": "Standby"},
+      "vacation": {"name": "Ferie"},
+      "vacation_for_dhw": {"name": "Ferie for brugsvand"},
+      "vacation_for_ch": {"name": "Ferie for centralvarme"},
+      "room_schedule": {"name": "RUM planlagt skema"},
+      "room_temporary_mode": {"name": "Midlertidig RUM mode"},
+      "return_limiter_priority_over_supply": {"name": "Returbegrænser prioritet over fremløb"}
+    },
+    "sensor": {
+      "dhw_state": {"name": "BVV status"},
+      "dhw_bypass_active": {"name": "BVV bypass"},
+      "dhw_blocking_source": {"name": "BVV blokeret af"},
+      "dhw_out_temperature": {"name": "Varmt vand ud (BV)"},
+      "dcw_sensor_temperature": {"name": "Koldt vand ind (KV)"},
+      "domestic_cold_water_flow": {"name": "Varmtvandsflow (FLW)"},
+      "outdoor_temperature": {"name": "Udetemperatur (UT)"},
+      "source_inlet_temperature": {"name": "Fjernvarme fremløb (FJF)"},
+      "source_return_temperature": {"name": "Fjernvarme retur (FJR)"},
+      "source_delta_temperature": {"name": "Fjernvarme afkøling"},
+      "cvv_supply_temperature": {"name": "CVV fremløb"},
+      "cvv_desired_supply_temperature": {"name": "CVV ønsket fremløb"},
+      "cvv_return_temperature": {"name": "CVV retur"},
+      "itc_pump_demand": {"name": "CVV pumpe kald"},
+      "itc_pump_status": {"name": "CVV pumpe status"},
+      "dhw_control_mode": {"name": "BVV styre-mode"},
+      "dhw_regulator_state": {"name": "BVV regulator tilstand"},
+      "dhw_motor_stall_level": {"name": "BVV motor stall niveau"},
+      "ch_state": {"name": "Varmekreds status (CH)"},
+      "ch_blocking_source": {"name": "Varmekreds blokeret af (CH)"},
+      "ch_regulator_state": {"name": "Varme regulator tilstand (CH)"},
+      "ch_desired_inlet_temperature": {"name": "Varme onsket indlob (CH)"},
+      "hc_supply_temperature": {"name": "Varme fremlob (HC)"},
+      "hc_return_temperature": {"name": "Varme retur (HC)"},
+      "system_pressure": {"name": "Anlægstryk"},
+      "itc_max_outdoor_temp": {"name": "Sommerudkobling"},
+      "documented_secondary_pressure": {"name": "Dokumenteret sekundærtryk"},
+      "valve_position": {"name": "Varmtvandsventil (BVV)"},
+      "cvv_valve_position": {"name": "Radiatorventil (CVV)"},
+      "dhw_power_estimate": {"name": "Varmtvand effekt estimat"},
+      "dhw_energy_estimate": {"name": "Varmtvand energi estimat"},
+      "dhw_temperature_setpoint": {"name": "BVV temperatur setpunkt"},
+      "dhw_bypass_temperature": {"name": "BVV bypass temperatur"},
+      "circulation_temperature": {"name": "Cirkulation temperatur"},
+      "circulation_state": {"name": "Cirkulation status"},
+      "dhw_boost_state": {"name": "Boostpumpe status"},
+      "boost_pump_mode": {"name": "Boostpumpe tilstand"},
+      "flow_sensor_type": {"name": "Flowmåler type"},
+      "dhw_mode": {"name": "BVV mode"},
+      "device_type": {"name": "Enhedstype"},
+      "hardware_version": {"name": "Hardwareversion"},
+      "software_version": {"name": "Softwareversion"}
+    },
+    "binary_sensor": {
+      "warning_low_energy": {"name": "Lav energi advarsel"},
+      "error_dhw_temperature_high": {"name": "Brugsvand temperatur høj"},
+      "dhw_motor_failure": {"name": "BVV motorfejl"},
+      "dhi_sensor_failure": {"name": "Fjernvarme fremløbsføler fejl"},
+      "dho_sensor_failure": {"name": "Fjernvarme returføler fejl"},
+      "dhw_sensor_failure": {"name": "Brugsvandsføler fejl"},
+      "dcw_sensor_failure": {"name": "Koldtvandsføler fejl"},
+      "warning_pressure_high": {"name": "Tryk høj advarsel"},
+      "warning_pressure_low": {"name": "Tryk lav advarsel"},
+      "error_pressure_critical_low": {"name": "Tryk kritisk lav fejl"},
+      "no_secondary_pressure": {"name": "Intet sekundærtryk"},
+      "pressure_sensor_failure": {"name": "Tryksensor fejl"},
+      "flow_sensor_failure": {"name": "Flowsensor fejl"},
+      "dhi_frost_protection": {"name": "Fjernvarme frostbeskyttelse"},
+      "dhw_motor_stuck": {"name": "BVV motor blokeret"},
+      "itc_hs_sensor_failure": {"name": "CVV fremløbsføler fejl"},
+      "itc_hr_sensor_failure": {"name": "CVV returføler fejl"},
+      "outdoor_sensor_failure": {"name": "Udetemperaturføler fejl"},
+      "itc_motor_failure": {"name": "CVV ventilmotor fejl"},
+      "itc_htco_error": {"name": "HTCO fejl (ITC)"},
+      "itc_hs_frost_protection": {"name": "Varme frostbeskyttelse (ITC)"}
+    }
+  },
+  "exceptions": {
+    "temporary_mode_standby": {
+      "message": "Midlertidig RUM-mode kan ikke bruges, mens Calefa er i standby: enheden nulstiller den med det samme. Frigiv standby eller sæt automatisk standby på pause først."
+    }
+  }
+}

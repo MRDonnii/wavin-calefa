@@ -1,0 +1,199 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Wavin Calefa",
+        "description": "Connect to a Wavin Calefa/Sentio unit over local Modbus TCP. The integration scans for the correct Modbus port automatically.",
+        "data": {
+          "name": "Name",
+          "host": "IP address",
+          "language": "Sensor language",
+          "port": "Port",
+          "unit_id": "Modbus unit ID",
+          "scan_interval": "Scan interval"
+        }
+      },
+      "auto_standby": {
+        "title": "Heating demand and automatic standby",
+        "description": "Optional: Leave Automatic standby off and all heat sources empty if you do not want the feature. If enabled, select the radiator thermostats and any valves that must wake Calefa immediately when heat is needed.",
+        "data": {
+          "heat_call_climate_entities": "Radiator thermostats that must wake Calefa",
+          "heat_call_ac_entities": "AC/cooling entities that should suppress demand while actively cooling (optional)",
+          "heat_call_sensor_rooms": "Rooms without a thermostat (one 'sensor:target' per line; target may be a temperature or input_number entity)",
+          "heat_call_valve_entities": "Valves/actuators that signal heat demand (optional)",
+          "heat_call_valve_threshold": "Valve opening considered demand (%)",
+          "heat_call_hysteresis": "Hysteresis (°C below target before demand starts)",
+          "heat_call_restart_delay_minutes": "Legacy compatibility value (heat demand always releases standby immediately)",
+          "auto_standby_enabled": "Enable automatic standby",
+          "auto_standby_delay_minutes": "How long everything must stay warm enough before standby engages (minutes)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not connect to the unit.",
+      "auto_standby_needs_demand_sources": "Automatic standby needs at least one radiator thermostat, sensor-only room, or valve above."
+    },
+    "abort": {
+      "already_configured": "This unit is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Wavin Calefa options",
+        "description": "Configure a set of existing thermostats, sensor-only rooms, and valve/actuator entities as a shared heat-demand signal - purely read, never written to. Automatic standby uses this signal to put the whole unit into standby once every one of them is warm enough for long enough, releasing it again the moment real demand returns. It needs at least one thermostat or sensor-room configured below.",
+        "data": {
+          "name": "Name",
+          "host": "IP address",
+          "language": "Sensor language (auto/da/en)",
+          "port": "Port (0 = auto)",
+          "unit_id": "Modbus unit ID",
+          "scan_interval": "Scan interval",
+          "heat_call_climate_entities": "Thermostats to monitor for heat demand",
+          "heat_call_ac_entities": "AC/cooling entities that should suppress demand while actively cooling (optional)",
+          "heat_call_sensor_rooms": "Rooms with no thermostat (one 'sensor:target' per line; target may be a temperature or input_number entity)",
+          "heat_call_valve_entities": "Actuator entities that signal demand by opening, e.g. a ventilation unit's after-heater valve (optional)",
+          "heat_call_valve_threshold": "Valve opening considered demand (%)",
+          "heat_call_hysteresis": "Hysteresis (°C below target before demand starts)",
+          "heat_call_restart_delay_minutes": "How long real demand must hold before automatic standby releases (minutes)",
+          "auto_standby_enabled": "Enable automatic standby",
+          "auto_standby_delay_minutes": "How long everything must stay warm enough before standby engages (minutes)"
+        }
+      }
+    },
+    "error": {
+      "auto_standby_needs_demand_sources": "Automatic standby needs at least one thermostat or sensor-room configured above."
+    }
+  },
+  "entity": {
+    "number": {
+      "room_temporary_temperature": {"name": "Temporary room temperature"},
+      "room_temporary_duration": {"name": "Temporary room duration"},
+      "heat_curve_manual_slope": {"name": "Manual heat curve slope"},
+      "summer_shutdown_temperature": {"name": "Summer shutdown temperature"},
+      "heat_curve_parallel_shift": {"name": "Heat curve parallel shift"},
+      "heat_curve_min_supply_temperature": {"name": "Heat curve minimum supply"},
+      "heat_curve_max_supply_temperature": {"name": "Heat curve maximum supply"},
+      "return_limiter_max_temperature": {"name": "Maximum return temperature"},
+      "return_limiter_max_gain": {"name": "Maximum return limiter gain"},
+      "dhw_temperature_setpoint_control": {"name": "DHW temperature"},
+      "dhw_bypass_temperature_control": {"name": "DHW bypass temperature"},
+      "circulation_temperature_control": {"name": "Circulation temperature"}
+    },
+    "select": {
+      "room_mode": {
+        "name": "Room mode",
+        "state": {
+          "eco": "Eco",
+          "comfort": "Comfort",
+          "extra_comfort": "Extra comfort"
+        }
+      },
+      "return_limiter_mode": {
+        "name": "Return limiter mode",
+        "state": {
+          "off": "Off",
+          "maximum": "Maximum"
+        }
+      },
+      "heat_curve_type": {
+        "name": "Heat curve type",
+        "state": {
+          "manual": "Manual",
+          "floor_heating": "Floor heating",
+          "radiator": "Radiator"
+        }
+      },
+      "dhw_mode_control": {
+        "name": "DHW mode",
+        "state": {
+          "schedule": "Schedule",
+          "adaptive_schedule": "Adaptive schedule",
+          "eco": "Eco",
+          "comfort": "Comfort"
+        }
+      }
+    },
+    "switch": {
+      "standby": {"name": "Standby"},
+      "vacation": {"name": "Vacation"},
+      "vacation_for_dhw": {"name": "Vacation for DHW"},
+      "vacation_for_ch": {"name": "Vacation for central heating"},
+      "room_schedule": {"name": "Room schedule"},
+      "room_temporary_mode": {"name": "Temporary room mode"},
+      "return_limiter_priority_over_supply": {"name": "Return limiter priority over supply"}
+    },
+    "sensor": {
+      "dhw_state": {"name": "DHW status"},
+      "dhw_bypass_active": {"name": "DHW bypass"},
+      "dhw_blocking_source": {"name": "DHW blocked by"},
+      "dhw_out_temperature": {"name": "Hot water outlet (HW)"},
+      "dcw_sensor_temperature": {"name": "Cold water inlet (CW)"},
+      "domestic_cold_water_flow": {"name": "Hot water flow (FLW)"},
+      "outdoor_temperature": {"name": "Outdoor temperature (OT)"},
+      "source_inlet_temperature": {"name": "District heating supply (DHS)"},
+      "source_return_temperature": {"name": "District heating return (DHR)"},
+      "source_delta_temperature": {"name": "District heating cooling"},
+      "cvv_supply_temperature": {"name": "Heating supply (ITC)"},
+      "cvv_desired_supply_temperature": {"name": "Heating desired supply (ITC)"},
+      "cvv_return_temperature": {"name": "Heating return (ITC)"},
+      "itc_pump_demand": {"name": "Heating pump demand (ITC)"},
+      "itc_pump_status": {"name": "Heating pump status (ITC)"},
+      "dhw_control_mode": {"name": "DHW control mode"},
+      "dhw_regulator_state": {"name": "DHW regulator state"},
+      "dhw_motor_stall_level": {"name": "DHW motor stall level"},
+      "ch_state": {"name": "Heating state (CH)"},
+      "ch_blocking_source": {"name": "Heating blocked by (CH)"},
+      "ch_regulator_state": {"name": "Heating regulator state (CH)"},
+      "ch_desired_inlet_temperature": {"name": "Heating desired inlet (CH)"},
+      "hc_supply_temperature": {"name": "Heating supply (HC)"},
+      "hc_return_temperature": {"name": "Heating return (HC)"},
+      "system_pressure": {"name": "System pressure"},
+      "itc_max_outdoor_temp": {"name": "Summer shutdown temperature"},
+      "documented_secondary_pressure": {"name": "Documented secondary pressure"},
+      "valve_position": {"name": "DHW valve position"},
+      "cvv_valve_position": {"name": "Heating valve position (CH)"},
+      "dhw_power_estimate": {"name": "Hot water power estimate"},
+      "dhw_energy_estimate": {"name": "Hot water energy estimate"},
+      "dhw_temperature_setpoint": {"name": "DHW temperature setpoint"},
+      "dhw_bypass_temperature": {"name": "DHW bypass temperature"},
+      "circulation_temperature": {"name": "Circulation temperature"},
+      "circulation_state": {"name": "Circulation status"},
+      "dhw_boost_state": {"name": "Boost pump status"},
+      "boost_pump_mode": {"name": "Boost pump mode"},
+      "flow_sensor_type": {"name": "Flow sensor type"},
+      "dhw_mode": {"name": "DHW mode"},
+      "device_type": {"name": "Device type"},
+      "hardware_version": {"name": "Hardware version"},
+      "software_version": {"name": "Software version"}
+    },
+    "binary_sensor": {
+      "warning_low_energy": {"name": "Low energy warning"},
+      "error_dhw_temperature_high": {"name": "DHW temperature high"},
+      "dhw_motor_failure": {"name": "DHW motor failure"},
+      "dhi_sensor_failure": {"name": "District heating supply sensor failure"},
+      "dho_sensor_failure": {"name": "District heating return sensor failure"},
+      "dhw_sensor_failure": {"name": "DHW sensor failure"},
+      "dcw_sensor_failure": {"name": "Cold water sensor failure"},
+      "warning_pressure_high": {"name": "High pressure warning"},
+      "warning_pressure_low": {"name": "Low pressure warning"},
+      "error_pressure_critical_low": {"name": "Critical low pressure"},
+      "no_secondary_pressure": {"name": "No secondary pressure"},
+      "pressure_sensor_failure": {"name": "Pressure sensor failure"},
+      "flow_sensor_failure": {"name": "Flow sensor failure"},
+      "dhi_frost_protection": {"name": "District heating frost protection"},
+      "dhw_motor_stuck": {"name": "DHW motor stuck"},
+      "itc_hs_sensor_failure": {"name": "Heating supply sensor failure (ITC)"},
+      "itc_hr_sensor_failure": {"name": "Heating return sensor failure (ITC)"},
+      "outdoor_sensor_failure": {"name": "Outdoor sensor failure"},
+      "itc_motor_failure": {"name": "Heating valve motor failure (ITC)"},
+      "itc_htco_error": {"name": "HTCO error (ITC)"},
+      "itc_hs_frost_protection": {"name": "Heating frost protection (ITC)"}
+    }
+  },
+  "exceptions": {
+    "temporary_mode_standby": {
+      "message": "The RUM temporary mode cannot be used while Calefa is in standby: the unit clears it immediately. Release standby or pause automatic standby first."
+    }
+  }
+}
