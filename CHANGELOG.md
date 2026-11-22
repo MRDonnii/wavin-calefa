@@ -2,6 +2,11 @@
 
 All notable changes to Wavin Calefa are documented in this file.
 
+## [0.7.16] - 2026-11-22
+
+### Changed
+- Maintenance: update test after the repository move. No functional changes.
+
 ## [0.7.15] - 2026-11-22
 
 ### Changed
